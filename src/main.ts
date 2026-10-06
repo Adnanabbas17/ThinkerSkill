@@ -21,7 +21,9 @@ async function start(): Promise<void> {
     const input = createInput(canvas);
     createTuningPanel(tuning);
 
-    const state = createSim(room, 1, testWaves);
+    // New seed each try so spawns differ; R restarts once the run has ended.
+    let tryNumber = 1;
+    let state = createSim(room, tryNumber, testWaves);
     const frameEvents: SimEvent[] = [];
     let acc = 0;
     let alpha = 1;
@@ -30,6 +32,12 @@ async function start(): Promise<void> {
     document.addEventListener('visibilitychange', () => {
       paused = document.hidden;
       last = null; // no catch-up burst when the tab comes back
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'KeyR' || e.repeat || state.status === 'playing') return;
+      tryNumber++;
+      state = createSim(room, tryNumber, testWaves);
+      acc = 0;
     });
 
     await view.renderer.setAnimationLoop((now) => {
@@ -46,6 +54,7 @@ async function start(): Promise<void> {
       }
       view.draw(state, alpha, frameDt, tuning, frameEvents);
       frameEvents.length = 0;
+      hud.game(state, tuning, tryNumber);
       hud.frame(now, frameDt * 1000);
     });
   } catch (err) {

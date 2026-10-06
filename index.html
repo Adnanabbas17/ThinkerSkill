@@ -8,11 +8,16 @@
   <body>
     <canvas id="game"></canvas>
     <div id="hud" class="hud">
+      <div><span class="hud-label">HP</span> <span id="hud-hp" class="hud-hp">--</span></div>
+      <div><span class="hud-label">Wave</span> <span id="hud-wave">--</span></div>
+      <div><span class="hud-label">Try</span> <span id="hud-try">1</span></div>
+      <div class="hud-gap"></div>
       <div><span class="hud-label">FPS</span> <span id="hud-fps">--</span></div>
       <div><span class="hud-label">Worst 5s</span> <span id="hud-worst">--</span></div>
       <div><span class="hud-label">Backend</span> <span id="hud-backend">starting…</span></div>
-      <div class="hud-hint">WASD move · mouse aim · Shift dash · ` tuning</div>
+      <div class="hud-hint">WASD move · mouse aim · click fire · Shift dash · M mute · ` tuning</div>
     </div>
+    <div id="hud-banner" class="hud-banner" hidden></div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
