@@ -9,11 +9,14 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  SphereGeometry,
   Vector3,
   WebGPURenderer,
 } from 'three/webgpu';
 import type { Room } from '../content/testRoom';
-import type { SimState, Vec2 } from '../sim/types';
+import { ENEMY_RADIUS } from '../sim/enemies';
+import { SHOT_RADIUS } from '../sim/projectiles';
+import type { SimEvent, SimState, Vec2 } from '../sim/types';
 import type { Tuning } from '../tuning/tuning';
 
 export type BackendName = 'WebGPU' | 'WebGL 2';
@@ -23,8 +26,11 @@ export interface View {
   backend: BackendName;
   /** Project a screen point through the current camera onto the floor (sim coordinates). */
   screenToFloor(clientX: number, clientY: number): Vec2 | null;
-  /** Draw the sim interpolated by `alpha` (0 = previous tick, 1 = current tick). */
-  draw(state: SimState, alpha: number, frameDt: number, tuning: Tuning): void;
+  /**
+   * Draw the sim interpolated by `alpha` (0 = previous tick, 1 = current tick).
+   * `events` are all sim events since the previous draw.
+   */
+  draw(state: SimState, alpha: number, frameDt: number, tuning: Tuning, events: readonly SimEvent[]): void;
 }
 
 /** `?forceWebGL=1` in the URL forces the WebGL 2 backend. */
@@ -37,6 +43,10 @@ const WALL_HEIGHT = 1.6;
 const OBSTACLE_HEIGHT = 1.4;
 
 const grey = (hex: number) => new MeshStandardMaterial({ color: hex, roughness: 0.85, metalness: 0 });
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+
+const ENEMY_COLOR = 0xb4532a;
+const FLASH_COLOR = 0xffffff;
 
 function box(w: number, h: number, d: number, mat: MeshStandardMaterial, x: number, y: number, z: number): Mesh {
   const m = new Mesh(new BoxGeometry(w, h, d), mat);
@@ -85,9 +95,44 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
   // Player drone: body plus a nose that points along the aim (+z in local space).
   const player = new Group();
   const pr = room.playerRadius;
-  player.add(box(pr * 1.8, 0.5, pr * 1.8, grey(0xd8dde3), 0, 0.45, 0));
+  const playerMat = grey(0xd8dde3);
+  player.add(box(pr * 1.8, 0.5, pr * 1.8, playerMat, 0, 0.45, 0));
   player.add(box(0.2, 0.2, 0.55, grey(0xf2f4f6), 0, 0.45, pr + 0.15));
   scene.add(player);
+
+  // Enemies and shots: pooled meshes, one per live sim entity (by index).
+  const er = ENEMY_RADIUS;
+  const enemyBody = new BoxGeometry(er * 1.7, 0.6, er * 1.7);
+  const enemyEye = new BoxGeometry(er * 0.9, 0.18, 0.2);
+  const eyeMat = grey(0x2a2d31);
+  const enemyPool: { group: Group; mat: MeshStandardMaterial }[] = [];
+  const enemyAt = (i: number) => {
+    while (enemyPool.length <= i) {
+      const mat = new MeshStandardMaterial({ color: ENEMY_COLOR, roughness: 0.7, metalness: 0 });
+      const group = new Group();
+      const body = new Mesh(enemyBody, mat);
+      body.position.y = 0.35;
+      const eye = new Mesh(enemyEye, eyeMat);
+      eye.position.set(0, 0.45, er * 0.85);
+      group.add(body, eye);
+      scene.add(group);
+      enemyPool.push({ group, mat });
+    }
+    return enemyPool[i];
+  };
+  const shotGeo = new SphereGeometry(SHOT_RADIUS * 1.4, 10, 8);
+  const shotMat = new MeshStandardMaterial({ color: 0x9fe8ff, emissive: 0x6fd8ff, emissiveIntensity: 1.5 });
+  const shotPool: Mesh[] = [];
+  const shotAt = (i: number) => {
+    while (shotPool.length <= i) {
+      const m = new Mesh(shotGeo, shotMat);
+      m.position.y = 0.45;
+      scene.add(m);
+      shotPool.push(m);
+    }
+    return shotPool[i];
+  };
+  let shake = 0;
 
   const camera = new PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
   camera.up.set(0, 0, -1); // keeps "up on screen" = away from camera, even when looking straight down
@@ -116,12 +161,40 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
       const k = -camera.position.y / ray.y;
       return { x: camera.position.x + ray.x * k, y: camera.position.z + ray.z * k };
     },
-    draw(state, alpha, frameDt, tuning) {
+    draw(state, alpha, frameDt, tuning, events) {
       const p = state.player;
-      const px = p.prevPos.x + (p.pos.x - p.prevPos.x) * alpha;
-      const pz = p.prevPos.y + (p.pos.y - p.prevPos.y) * alpha;
+      const px = lerp(p.prevPos.x, p.pos.x, alpha);
+      const pz = lerp(p.prevPos.y, p.pos.y, alpha);
       player.position.set(px, 0, pz);
       player.rotation.y = Math.atan2(p.aimDir.x, p.aimDir.y);
+      const destroyed = state.status === 'lost';
+      player.scale.set(1, destroyed ? 0.35 : 1, 1);
+      playerMat.color.setHex(destroyed ? 0x3a3d42 : 0xd8dde3);
+      // Blink while invulnerable after a hit.
+      player.visible = destroyed || p.invulnTime <= 0 || Math.floor(state.tick / 4) % 2 === 0;
+
+      state.enemies.forEach((e, i) => {
+        const { group, mat } = enemyAt(i);
+        group.visible = true;
+        const ex = lerp(e.prevPos.x, e.pos.x, alpha);
+        const ez = lerp(e.prevPos.y, e.pos.y, alpha);
+        group.position.set(ex, 0, ez);
+        group.rotation.y = Math.atan2(px - ex, pz - ez);
+        // Spawn warning: grows from small to full size.
+        const grow = tuning.enemySpawnTime > 0 ? 1 - e.spawnTime / tuning.enemySpawnTime : 1;
+        group.scale.setScalar(0.3 + 0.7 * grow);
+        mat.color.setHex(e.flash > 0 ? FLASH_COLOR : ENEMY_COLOR);
+        mat.emissive.setHex(e.flash > 0 ? FLASH_COLOR : 0x000000);
+      });
+      for (let i = state.enemies.length; i < enemyPool.length; i++) enemyPool[i].group.visible = false;
+
+      state.shots.forEach((s, i) => {
+        const m = shotAt(i);
+        m.visible = true;
+        m.position.x = lerp(s.prevPos.x, s.pos.x, alpha);
+        m.position.z = lerp(s.prevPos.y, s.pos.y, alpha);
+      });
+      for (let i = state.shots.length; i < shotPool.length; i++) shotPool[i].visible = false;
 
       if (camera.fov !== tuning.camFov) {
         camera.fov = tuning.camFov;
@@ -131,7 +204,18 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
       focus.x += (px - focus.x) * follow;
       focus.z += (pz - focus.z) * follow;
       placeCamera(tuning);
+
+      if (events.some((e) => e.type === 'playerHurt')) shake = tuning.shakeTime;
+      if (shake > 0) {
+        const amp = tuning.shakeHurt * (shake / tuning.shakeTime);
+        camera.position.x += (Math.random() * 2 - 1) * amp;
+        camera.position.z += (Math.random() * 2 - 1) * amp;
+        camera.updateMatrixWorld();
+        shake = Math.max(0, shake - frameDt);
+      }
       renderer.render(scene, camera);
+      // Unshaken camera for aiming: screenToFloor runs before the next draw.
+      placeCamera(tuning);
     },
   };
 }

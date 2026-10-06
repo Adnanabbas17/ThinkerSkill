@@ -1,8 +1,10 @@
 import { testRoom } from './content/testRoom';
+import { testWaves } from './content/testWaves';
 import { createInput } from './input/input';
 import { createView, wantsForcedWebGL } from './render/scene';
 import { advanceClock } from './sim/fixedStep';
 import { createSim, stepSim } from './sim/sim';
+import type { SimEvent } from './sim/types';
 import { createTuningPanel } from './tuning/panel';
 import { loadTuning } from './tuning/storage';
 import { createHud } from './ui/hud';
@@ -19,7 +21,8 @@ async function start(): Promise<void> {
     const input = createInput(canvas);
     createTuningPanel(tuning);
 
-    const state = createSim(room, 1);
+    const state = createSim(room, 1, testWaves);
+    const frameEvents: SimEvent[] = [];
     let acc = 0;
     let alpha = 1;
     let last: number | null = null;
@@ -36,9 +39,13 @@ async function start(): Promise<void> {
         const clock = advanceClock(acc, frameDt);
         acc = clock.acc;
         alpha = clock.alpha;
-        for (let i = 0; i < clock.steps; i++) stepSim(state, input.sample(view.screenToFloor), tuning, room);
+        for (let i = 0; i < clock.steps; i++) {
+          stepSim(state, input.sample(view.screenToFloor), tuning, room);
+          frameEvents.push(...state.events);
+        }
       }
-      view.draw(state, alpha, frameDt, tuning);
+      view.draw(state, alpha, frameDt, tuning, frameEvents);
+      frameEvents.length = 0;
       hud.frame(now, frameDt * 1000);
     });
   } catch (err) {
