@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest';
+import { KeyTracker } from './keys';
+
+describe('KeyTracker', () => {
+  it('maps WASD to a normalized direction (W is -y)', () => {
+    const k = new KeyTracker();
+    k.keyDown('KeyW', false);
+    expect(k.move()).toEqual({ x: 0, y: -1 });
+    k.keyDown('KeyD', false);
+    expect(k.move().x).toBeCloseTo(Math.SQRT1_2);
+    expect(k.move().y).toBeCloseTo(-Math.SQRT1_2);
+  });
+
+  it('opposite keys cancel', () => {
+    const k = new KeyTracker();
+    k.keyDown('KeyA', false);
+    k.keyDown('KeyD', false);
+    expect(k.move()).toEqual({ x: 0, y: 0 });
+  });
+
+  it('never leaves a key stuck when Shift is held while pressing and releasing WASD, in any order', () => {
+    const wasd = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
+    for (const shift of ['ShiftLeft', 'ShiftRight']) {
+      for (const shiftUpFirst of [true, false]) {
+        const k = new KeyTracker();
+        k.keyDown(shift, false);
+        for (const c of wasd) k.keyDown(c, false);
+        for (const c of wasd) k.keyDown(c, true); // auto-repeat while Shift is held
+        if (shiftUpFirst) k.keyUp(shift);
+        for (const c of [...wasd].reverse()) k.keyUp(c);
+        if (!shiftUpFirst) k.keyUp(shift);
+        expect(k.heldCount()).toBe(0);
+        expect(k.move()).toEqual({ x: 0, y: 0 });
+      }
+    }
+  });
+
+  it('latches one dash per Shift press, ignoring auto-repeat', () => {
+    const k = new KeyTracker();
+    k.keyDown('ShiftLeft', false);
+    k.keyDown('ShiftLeft', true);
+    expect(k.takeDash()).toBe(true);
+    expect(k.takeDash()).toBe(false);
+    k.keyUp('ShiftLeft');
+    k.keyDown('ShiftRight', false);
+    expect(k.takeDash()).toBe(true);
+  });
+
+  it('releaseAll clears held keys and a pending dash (window blur)', () => {
+    const k = new KeyTracker();
+    k.keyDown('KeyW', false);
+    k.keyDown('ShiftLeft', false);
+    k.releaseAll();
+    expect(k.heldCount()).toBe(0);
+    expect(k.takeDash()).toBe(false);
+  });
+});
