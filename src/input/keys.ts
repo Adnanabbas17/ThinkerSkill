@@ -5,14 +5,18 @@
 import type { Vec2 } from '../sim/types';
 
 export const DASH_CODES = ['ShiftLeft', 'ShiftRight'];
+/** Pseudo key code for the left mouse button, so it shares the stuck-key protection. */
+export const FIRE_CODE = 'Mouse0';
 
 export class KeyTracker {
   private readonly down = new Set<string>();
   private dashLatched = false;
+  private fireLatched = false;
 
   keyDown(code: string, repeat: boolean): void {
     this.down.add(code);
     if (!repeat && DASH_CODES.includes(code)) this.dashLatched = true;
+    if (code === FIRE_CODE) this.fireLatched = true;
   }
 
   keyUp(code: string): void {
@@ -23,6 +27,7 @@ export class KeyTracker {
   releaseAll(): void {
     this.down.clear();
     this.dashLatched = false;
+    this.fireLatched = false;
   }
 
   isDown(code: string): boolean {
@@ -46,5 +51,12 @@ export class KeyTracker {
     const d = this.dashLatched;
     this.dashLatched = false;
     return d;
+  }
+
+  /** True while the fire button is held, and once for a click shorter than a tick. */
+  takeFire(): boolean {
+    const f = this.fireLatched || this.isDown(FIRE_CODE);
+    this.fireLatched = false;
+    return f;
   }
 }

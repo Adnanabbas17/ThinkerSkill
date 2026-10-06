@@ -11,6 +11,8 @@ export interface TickInput {
   aim: Vec2;
   /** Dash was pressed since the previous tick. */
   dash: boolean;
+  /** Fire is held, or was clicked since the previous tick. */
+  fire: boolean;
 }
 
 export interface PlayerState {

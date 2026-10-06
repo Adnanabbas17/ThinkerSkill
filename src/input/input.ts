@@ -1,5 +1,5 @@
 import type { TickInput, Vec2 } from '../sim/types';
-import { KeyTracker } from './keys';
+import { FIRE_CODE, KeyTracker } from './keys';
 
 export interface Input {
   /**
@@ -28,13 +28,19 @@ export function createInput(canvas: HTMLCanvasElement): Input {
   window.addEventListener('pointermove', (e) => {
     cursor = { x: e.clientX, y: e.clientY };
   });
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button === 0) keys.keyDown(FIRE_CODE, false);
+  });
+  window.addEventListener('pointerup', (e) => {
+    if (e.button === 0) keys.keyUp(FIRE_CODE);
+  });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   return {
     sample(toFloor) {
       const aim = toFloor(cursor.x, cursor.y);
       if (aim) lastAim = aim;
-      return { move: keys.move(), aim: { ...lastAim }, dash: keys.takeDash() };
+      return { move: keys.move(), aim: { ...lastAim }, dash: keys.takeDash(), fire: keys.takeFire() };
     },
     releaseAll: () => keys.releaseAll(),
   };

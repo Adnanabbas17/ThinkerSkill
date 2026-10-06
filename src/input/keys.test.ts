@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KeyTracker } from './keys';
+import { FIRE_CODE, KeyTracker } from './keys';
 
 describe('KeyTracker', () => {
   it('maps WASD to a normalized direction (W is -y)', () => {
@@ -50,8 +50,27 @@ describe('KeyTracker', () => {
     const k = new KeyTracker();
     k.keyDown('KeyW', false);
     k.keyDown('ShiftLeft', false);
+    k.keyDown(FIRE_CODE, false);
     k.releaseAll();
     expect(k.heldCount()).toBe(0);
     expect(k.takeDash()).toBe(false);
+    expect(k.takeFire()).toBe(false);
+  });
+
+  it('fires every tick while the button is held, and stops on release', () => {
+    const k = new KeyTracker();
+    k.keyDown(FIRE_CODE, false);
+    expect(k.takeFire()).toBe(true);
+    expect(k.takeFire()).toBe(true);
+    k.keyUp(FIRE_CODE);
+    expect(k.takeFire()).toBe(false);
+  });
+
+  it('a click released before the next tick still fires once', () => {
+    const k = new KeyTracker();
+    k.keyDown(FIRE_CODE, false);
+    k.keyUp(FIRE_CODE);
+    expect(k.takeFire()).toBe(true);
+    expect(k.takeFire()).toBe(false);
   });
 });

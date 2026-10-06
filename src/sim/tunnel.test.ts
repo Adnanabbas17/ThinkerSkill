@@ -27,7 +27,7 @@ describe('no tunnelling at slider maximums', () => {
       for (let tick = 0; tick < 240; tick++) {
         // Dash every tick it is allowed; also curve the path to scrape along obstacles.
         const curve = { x: Math.cos(a + tick * 0.02), y: Math.sin(a + tick * 0.02) };
-        stepSim(s, { move: tick < 120 ? move : curve, aim: { x: 0, y: 0 }, dash: true }, t, room);
+        stepSim(s, { move: tick < 120 ? move : curve, aim: { x: 0, y: 0 }, dash: true, fire: false }, t, room);
         assertOutsideSolids(s.player.pos, `dir ${i} tick ${tick}`);
       }
     }
@@ -40,7 +40,7 @@ describe('no tunnelling at slider maximums', () => {
         s.player.pos = { x: b.x + side * (b.hw + 3), y: b.y };
         s.player.prevPos = { ...s.player.pos };
         for (let tick = 0; tick < 60; tick++) {
-          stepSim(s, { move: { x: -side, y: 0 }, aim: b, dash: true }, t, room);
+          stepSim(s, { move: { x: -side, y: 0 }, aim: b, dash: true, fire: false }, t, room);
           assertOutsideSolids(s.player.pos, `box ${b.x},${b.y} side ${side}`);
         }
         expect(Math.sign(s.player.pos.x - b.x)).toBe(side);
@@ -55,7 +55,7 @@ describe('no tunnelling at slider maximums', () => {
     for (const tuning of [t, { ...t, dashSpeed: 200, dashDuration: 0.4 }]) {
       const s = createSim(thin, 1);
       for (let tick = 0; tick < 90; tick++) {
-        stepSim(s, { move: { x: 1, y: 0 }, aim: { x: 10, y: 0 }, dash: true }, tuning, thin);
+        stepSim(s, { move: { x: 1, y: 0 }, aim: { x: 10, y: 0 }, dash: true, fire: false }, tuning, thin);
         expect(s.player.pos.x).toBeLessThan(0);
         expect(distToBox(s.player.pos, wall)).toBeGreaterThanOrEqual(r - EPS);
       }
