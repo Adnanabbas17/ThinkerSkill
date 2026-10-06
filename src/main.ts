@@ -8,6 +8,7 @@ import type { SimEvent } from './sim/types';
 import { createTuningPanel } from './tuning/panel';
 import { loadTuning } from './tuning/storage';
 import { createHud } from './ui/hud';
+import { createSfx } from './ui/sfx';
 
 async function start(): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -20,6 +21,7 @@ async function start(): Promise<void> {
     hud.setBackend(view.backend);
     const input = createInput(canvas);
     createTuningPanel(tuning);
+    const sfx = createSfx();
 
     // New seed each try so spawns differ; R restarts once the run has ended.
     let tryNumber = 1;
@@ -53,6 +55,7 @@ async function start(): Promise<void> {
         }
       }
       view.draw(state, alpha, frameDt, tuning, frameEvents);
+      sfx.play(frameEvents);
       frameEvents.length = 0;
       hud.game(state, tuning, tryNumber);
       hud.frame(now, frameDt * 1000);
