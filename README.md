@@ -8,8 +8,13 @@ A browser 3D top-down action game. You pilot a "Thinker" response drone through 
 
 - WASD: move
 - Mouse: aim
+- Left click (hold): fire
 - Shift: dash (in the move direction, or towards the aim when standing still)
+- R: restart after the run is cleared or lost
+- M: mute or unmute (placeholder sounds)
 - ` (backquote): tuning panel (sliders, reset, copy as JSON; values are saved in this browser)
+
+**Test room:** survive 3 waves of crawler drones (3, 5, 8). Clear them all to clear the room. Lose all HP and you are destroyed.
 
 **Live:** https://adnanabbas17.github.io/ThinkerSkill/
 (add `?forceWebGL=1` to force the WebGL 2 backend)
