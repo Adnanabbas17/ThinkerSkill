@@ -26,3 +26,7 @@ Pushing to `main` runs tests, builds, and deploys `dist/` to GitHub Pages. You c
 TypeScript, Vite, Three.js (`WebGPURenderer` with WebGL 2 fallback), Vitest. Plain HTML and CSS for the HUD.
 
 Asset credits: see [ASSETS.md](ASSETS.md).
+
+## Known issues
+
+- WebGPU device loss leaves a frozen canvas with a misleading fps; fix planned for a later milestone.
