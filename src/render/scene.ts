@@ -42,11 +42,28 @@ const WALL_THICKNESS = 0.6;
 const WALL_HEIGHT = 1.6;
 const OBSTACLE_HEIGHT = 1.4;
 
-const grey = (hex: number) => new MeshStandardMaterial({ color: hex, roughness: 0.85, metalness: 0 });
-const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+/**
+ * Every scene color in one place. Placeholder theme: classic 8-bit platformer
+ * palette (colors only, no borrowed shapes or names). Replaced in Milestone 3.
+ */
+export const PALETTE = {
+  sky: 0x5c94fc,
+  floor: 0xe09a5a,
+  wall: 0xc84c0c,
+  obstacle: 0x00a800,
+  player: 0xfcfcfc,
+  playerNose: 0xd82800,
+  playerDestroyed: 0x3c3c3c,
+  enemy: 0x7c3c00,
+  enemyEye: 0xfcfcfc,
+  flash: 0xffffff,
+  shot: 0xff2a00,
+  ambient: 0xfff4e0,
+  sun: 0xffffff,
+};
 
-const ENEMY_COLOR = 0xb4532a;
-const FLASH_COLOR = 0xffffff;
+const matte = (hex: number) => new MeshStandardMaterial({ color: hex, roughness: 0.9, metalness: 0 });
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
 function box(w: number, h: number, d: number, mat: MeshStandardMaterial, x: number, y: number, z: number): Mesh {
   const m = new Mesh(new BoxGeometry(w, h, d), mat);
@@ -62,9 +79,9 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
   const backend: BackendName = 'isWebGPUBackend' in renderer.backend ? 'WebGPU' : 'WebGL 2';
 
   const scene = new Scene();
-  scene.background = new Color(0x15181c);
-  scene.add(new AmbientLight(0xffffff, 0.6));
-  const sun = new DirectionalLight(0xffffff, 2.2);
+  scene.background = new Color(PALETTE.sky);
+  scene.add(new AmbientLight(PALETTE.ambient, 1.1));
+  const sun = new DirectionalLight(PALETTE.sun, 1.8);
   sun.position.set(6, 14, 8);
   scene.add(sun);
 
@@ -73,12 +90,12 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
   const d = room.maxY - room.minY;
   const cx = (room.minX + room.maxX) / 2;
   const cz = (room.minY + room.maxY) / 2;
-  const floor = new Mesh(new PlaneGeometry(w + WALL_THICKNESS * 2, d + WALL_THICKNESS * 2), grey(0x4a4f56));
+  const floor = new Mesh(new PlaneGeometry(w + WALL_THICKNESS * 2, d + WALL_THICKNESS * 2), matte(PALETTE.floor));
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(cx, 0, cz);
   scene.add(floor);
 
-  const wallMat = grey(0x6b7179);
+  const wallMat = matte(PALETTE.wall);
   const t = WALL_THICKNESS;
   const yWall = WALL_HEIGHT / 2;
   scene.add(
@@ -87,7 +104,7 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
     box(t, WALL_HEIGHT, d, wallMat, room.minX - t / 2, yWall, cz),
     box(t, WALL_HEIGHT, d, wallMat, room.maxX + t / 2, yWall, cz),
   );
-  const obstacleMat = grey(0x8a9099);
+  const obstacleMat = matte(PALETTE.obstacle);
   for (const o of room.obstacles) {
     scene.add(box(o.hw * 2, OBSTACLE_HEIGHT, o.hh * 2, obstacleMat, o.x, OBSTACLE_HEIGHT / 2, o.y));
   }
@@ -95,20 +112,21 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
   // Player drone: body plus a nose that points along the aim (+z in local space).
   const player = new Group();
   const pr = room.playerRadius;
-  const playerMat = grey(0xd8dde3);
+  const playerMat = matte(PALETTE.player);
+  const noseMat = matte(PALETTE.playerNose);
   player.add(box(pr * 1.8, 0.5, pr * 1.8, playerMat, 0, 0.45, 0));
-  player.add(box(0.2, 0.2, 0.55, grey(0xf2f4f6), 0, 0.45, pr + 0.15));
+  player.add(box(0.2, 0.2, 0.55, noseMat, 0, 0.45, pr + 0.15));
   scene.add(player);
 
   // Enemies and shots: pooled meshes, one per live sim entity (by index).
   const er = ENEMY_RADIUS;
   const enemyBody = new BoxGeometry(er * 1.7, 0.6, er * 1.7);
   const enemyEye = new BoxGeometry(er * 0.9, 0.18, 0.2);
-  const eyeMat = grey(0x2a2d31);
+  const eyeMat = matte(PALETTE.enemyEye);
   const enemyPool: { group: Group; mat: MeshStandardMaterial }[] = [];
   const enemyAt = (i: number) => {
     while (enemyPool.length <= i) {
-      const mat = new MeshStandardMaterial({ color: ENEMY_COLOR, roughness: 0.7, metalness: 0 });
+      const mat = matte(PALETTE.enemy);
       const group = new Group();
       const body = new Mesh(enemyBody, mat);
       body.position.y = 0.35;
@@ -121,7 +139,7 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
     return enemyPool[i];
   };
   const shotGeo = new SphereGeometry(SHOT_RADIUS * 1.4, 10, 8);
-  const shotMat = new MeshStandardMaterial({ color: 0x9fe8ff, emissive: 0x6fd8ff, emissiveIntensity: 1.5 });
+  const shotMat = new MeshStandardMaterial({ color: PALETTE.shot, emissive: PALETTE.shot, emissiveIntensity: 1.2 });
   const shotPool: Mesh[] = [];
   const shotAt = (i: number) => {
     while (shotPool.length <= i) {
@@ -169,7 +187,8 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
       player.rotation.y = Math.atan2(p.aimDir.x, p.aimDir.y);
       const destroyed = state.status === 'lost';
       player.scale.set(1, destroyed ? 0.35 : 1, 1);
-      playerMat.color.setHex(destroyed ? 0x3a3d42 : 0xd8dde3);
+      playerMat.color.setHex(destroyed ? PALETTE.playerDestroyed : PALETTE.player);
+      noseMat.color.setHex(destroyed ? PALETTE.playerDestroyed : PALETTE.playerNose);
       // Blink while invulnerable after a hit.
       player.visible = destroyed || p.invulnTime <= 0 || Math.floor(state.tick / 4) % 2 === 0;
 
@@ -183,8 +202,8 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
         // Spawn warning: grows from small to full size.
         const grow = tuning.enemySpawnTime > 0 ? 1 - e.spawnTime / tuning.enemySpawnTime : 1;
         group.scale.setScalar(0.3 + 0.7 * grow);
-        mat.color.setHex(e.flash > 0 ? FLASH_COLOR : ENEMY_COLOR);
-        mat.emissive.setHex(e.flash > 0 ? FLASH_COLOR : 0x000000);
+        mat.color.setHex(e.flash > 0 ? PALETTE.flash : PALETTE.enemy);
+        mat.emissive.setHex(e.flash > 0 ? PALETTE.flash : 0x000000);
       });
       for (let i = state.enemies.length; i < enemyPool.length; i++) enemyPool[i].group.visible = false;
 
