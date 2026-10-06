@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { testRoom } from '../content/testRoom';
+import { testWaves } from '../content/testWaves';
 import { cloneDefaults } from '../tuning/tuning';
 import { createRng } from './rng';
 import { createSim, stepSim } from './sim';
@@ -25,7 +26,7 @@ function recordInputs(seed: number, ticks: number): TickInput[] {
 
 function play(seed: number, inputs: TickInput[]): string {
   const t = cloneDefaults();
-  const s = createSim(testRoom, seed);
+  const s = createSim(testRoom, seed, testWaves);
   for (const inp of inputs) stepSim(s, inp, t, testRoom);
   return JSON.stringify(s);
 }
@@ -34,6 +35,17 @@ describe('determinism', () => {
   it('same seed and same recorded inputs give an identical final state', () => {
     const inputs = recordInputs(99, 3600);
     expect(play(7, inputs)).toBe(play(7, structuredClone(inputs)));
+  });
+
+  it('the recorded run includes combat (shots, spawns, hits)', () => {
+    const t = cloneDefaults();
+    const s = createSim(testRoom, 7, testWaves);
+    const seen = new Set<string>();
+    for (const inp of recordInputs(99, 3600)) {
+      stepSim(s, inp, t, testRoom);
+      for (const e of s.events) seen.add(e.type);
+    }
+    for (const type of ['fire', 'enemySpawn', 'enemyHit']) expect(seen).toContain(type);
   });
 
   it('different inputs give a different final state (the test can fail)', () => {

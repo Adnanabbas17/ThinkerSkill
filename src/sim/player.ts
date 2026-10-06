@@ -15,6 +15,8 @@ export function createPlayer(room: Room): PlayerState {
     dashCooldown: 0,
     dashDir: vec(0, -1),
     invulnTime: 0,
+    damage: 0,
+    fireCooldown: 0,
   };
 }
 

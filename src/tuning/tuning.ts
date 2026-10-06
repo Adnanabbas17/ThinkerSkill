@@ -29,10 +29,10 @@ export const defaultTuning = {
   shotSpeed: 28,
   shotDamage: 1,
   // Enemy
-  enemyHp: 3,
-  enemySpeed: 3.2,
+  enemyHp: 4,
+  enemySpeed: 3.6,
   enemyAccel: 20,
-  enemyKnockback: 7,
+  enemyKnockback: 4,
   enemySpawnTime: 0.6,
   // Hurt
   playerHp: 5,
