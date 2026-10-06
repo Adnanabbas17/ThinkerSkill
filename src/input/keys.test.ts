@@ -35,15 +35,24 @@ describe('KeyTracker', () => {
     }
   });
 
-  it('latches one dash per Shift press, ignoring auto-repeat', () => {
+  it('dashes every tick while Shift is held, and stops on release', () => {
     const k = new KeyTracker();
     k.keyDown('ShiftLeft', false);
     k.keyDown('ShiftLeft', true);
     expect(k.takeDash()).toBe(true);
-    expect(k.takeDash()).toBe(false);
+    expect(k.takeDash()).toBe(true);
     k.keyUp('ShiftLeft');
+    expect(k.takeDash()).toBe(false);
     k.keyDown('ShiftRight', false);
     expect(k.takeDash()).toBe(true);
+  });
+
+  it('a Shift tap released before the next tick still dashes once', () => {
+    const k = new KeyTracker();
+    k.keyDown('ShiftLeft', false);
+    k.keyUp('ShiftLeft');
+    expect(k.takeDash()).toBe(true);
+    expect(k.takeDash()).toBe(false);
   });
 
   it('releaseAll clears held keys and a pending dash (window blur)', () => {

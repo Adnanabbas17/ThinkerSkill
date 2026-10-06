@@ -46,9 +46,9 @@ export class KeyTracker {
     return l > 0 ? { x: x / l, y: y / l } : { x: 0, y: 0 };
   }
 
-  /** True once per Shift press; consumed by the first sim tick that reads it. */
+  /** True while Shift is held (dash repeats as soon as allowed), and once for a tap shorter than a tick. */
   takeDash(): boolean {
-    const d = this.dashLatched;
+    const d = this.dashLatched || DASH_CODES.some((c) => this.isDown(c));
     this.dashLatched = false;
     return d;
   }
