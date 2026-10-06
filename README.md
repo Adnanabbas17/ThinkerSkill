@@ -2,7 +2,14 @@
 
 A browser 3D top-down action game. You pilot a "Thinker" response drone through a reactor facility in meltdown. Reflexes create the pressure; critical thinking, triage, and problem solving win the run. Each run ends with a per-skill debrief.
 
-**Status:** Milestone 0 (scaffold). The page shows a rotating test cube, an fps counter, and the active render backend.
+**Status:** Milestone 1 (feel prototype, grey boxes) in progress.
+
+## Controls
+
+- WASD: move
+- Mouse: aim
+- Shift: dash (in the move direction, or towards the aim when standing still)
+- ` (backquote): tuning panel (sliders, reset, copy as JSON; values are saved in this browser)
 
 **Live:** https://adnanabbas17.github.io/ThinkerSkill/
 (add `?forceWebGL=1` to force the WebGL 2 backend)

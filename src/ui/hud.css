@@ -30,3 +30,13 @@ body {
   min-width: 64px;
   color: #8fa3b5;
 }
+
+#game {
+  cursor: crosshair;
+}
+
+.hud-hint {
+  margin-top: 4px;
+  color: #8fa3b5;
+  font-size: 12px;
+}
