@@ -70,3 +70,10 @@ A stranger opens a public URL in a desktop browser, plays a full run with no hel
 - Small commits with clear messages.
 - If my request adds scope, breaks a constraint, or is a bad idea, say so first and offer the simpler option.
 - Be direct and brief. Separate facts, assumptions, and opinions. Ask instead of guessing.
+
+## Commands
+- Install: `npm install` (CI uses `npm ci`)
+- Dev server: `npm run dev` (http://localhost:5173)
+- Tests: `npm test`
+- Build: `npm run build` (type-check with `tsc --noEmit`, then `vite build` to `dist/`)
+- Preview build: `npm run preview` (http://localhost:4173)
