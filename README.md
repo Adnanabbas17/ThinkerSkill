@@ -9,7 +9,7 @@ A browser 3D top-down action game. You pilot a "Thinker" response drone through 
 - WASD: move
 - Mouse: aim
 - Left click (hold): fire
-- Shift: dash (in the move direction, or towards the aim when standing still); hold to keep dashing
+- Shift: dash (in the move direction, or towards the aim when standing still)
 - R: restart after the run is cleared or lost
 - M: mute or unmute (placeholder sounds)
 - ` (backquote): tuning panel (sliders, reset, copy as JSON; values are saved in this browser)

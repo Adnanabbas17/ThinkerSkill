@@ -17,7 +17,7 @@ export const defaultTuning = {
   // Dash
   dashSpeed: 20,
   dashDuration: 0.14,
-  dashCooldown: 0,
+  dashCooldown: 0.8,
   dashInvuln: 0,
   // Camera
   camHeight: 16,

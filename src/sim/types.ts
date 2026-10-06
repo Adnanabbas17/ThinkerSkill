@@ -11,7 +11,7 @@ export interface TickInput {
   move: Vec2;
   /** Cursor point projected onto the floor plane. */
   aim: Vec2;
-  /** Dash is held, or was pressed since the previous tick. */
+  /** Dash was pressed since the previous tick. */
   dash: boolean;
   /** Fire is held, or was clicked since the previous tick. */
   fire: boolean;

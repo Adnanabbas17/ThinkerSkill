@@ -32,8 +32,7 @@ export function stepPlayer(p: PlayerState, input: TickInput, t: Tuning, room: Ro
   const moveDir = normalize(input.move);
   const moveAmount = Math.min(1, len(input.move));
 
-  // A dash in its last tick can roll straight into the next, so held dashes chain without a slow tick.
-  if (input.dash && p.dashTime <= dt + 1e-9 && p.dashCooldown <= 0) {
+  if (input.dash && p.dashTime <= 0 && p.dashCooldown <= 0) {
     p.dashDir = moveDir ?? copy(p.aimDir);
     p.dashTime = t.dashDuration;
     p.dashCooldown = t.dashCooldown;

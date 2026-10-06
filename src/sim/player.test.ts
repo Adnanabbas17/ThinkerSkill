@@ -71,31 +71,17 @@ describe('dash', () => {
     expect(s.player.vel.y).toBeCloseTo(t.dashSpeed);
   });
 
-  it('with a cooldown set, cannot dash again until it ends', () => {
-    const tc = { ...t, dashCooldown: 0.8 };
+  it('cannot dash again until the cooldown ends', () => {
     const s = createSim(room, 1);
     const dash = input({ x: 1, y: 0 }, { dash: true });
-    stepSim(s, dash, tc, room);
-    const cooldownTicks = Math.round(tc.dashCooldown / SIM_DT);
+    stepSim(s, dash, t, room);
+    const cooldownTicks = Math.round(t.dashCooldown / SIM_DT);
     for (let i = 1; i < cooldownTicks; i++) {
-      stepSim(s, dash, tc, room);
+      stepSim(s, dash, t, room);
       expect(s.events).toEqual([]);
     }
-    stepSim(s, dash, tc, room);
+    stepSim(s, dash, t, room);
     expect(s.events).toEqual([{ type: 'dash' }]);
-  });
-
-  it('with no cooldown (default), holding dash chains dashes back to back', () => {
-    expect(t.dashCooldown).toBe(0);
-    const s = createSim(room, 1);
-    const dash = input({ x: 1, y: 0 }, { dash: true });
-    let dashes = 0;
-    for (let i = 0; i < 30; i++) { // 10 m: stays clear of the wall at x = 15
-      stepSim(s, dash, t, room);
-      dashes += s.events.filter((e) => e.type === 'dash').length;
-      expect(s.player.vel.x, `tick ${i}`).toBeCloseTo(t.dashSpeed); // never drops to walking speed
-    }
-    expect(dashes).toBeGreaterThanOrEqual(3);
   });
 
   it('gives no invulnerability with dashInvuln = 0 (default)', () => {
