@@ -18,6 +18,8 @@ export interface Room {
   obstacles: Box[];
   playerStart: { x: number; y: number };
   playerRadius: number;
+  /** Where enemies appear. Keep each at least 1 m clear of walls and obstacles. */
+  spawnPoints: { x: number; y: number }[];
 }
 
 export const testRoom: Room = {
@@ -33,4 +35,14 @@ export const testRoom: Room = {
   ],
   playerStart: { x: 0, y: 0 },
   playerRadius: 0.5,
+  spawnPoints: [
+    { x: -13, y: -8 },
+    { x: 0, y: -8.5 },
+    { x: 13, y: -8 },
+    { x: -13.5, y: 0 },
+    { x: 13.5, y: 0 },
+    { x: -13, y: 8 },
+    { x: 0, y: 8.5 },
+    { x: 13, y: 8 },
+  ],
 };

@@ -24,6 +24,25 @@ export const defaultTuning = {
   camBack: 9,
   camFov: 50,
   camFollow: 8,
+  // Fire
+  fireRate: 6,
+  shotSpeed: 28,
+  shotDamage: 1,
+  // Enemy
+  enemyHp: 3,
+  enemySpeed: 3.2,
+  enemyAccel: 20,
+  enemyKnockback: 7,
+  enemySpawnTime: 0.6,
+  // Hurt
+  playerHp: 5,
+  contactDamage: 1,
+  hurtInvuln: 1,
+  hurtKnockback: 9,
+  // Feedback
+  hitFlash: 0.08,
+  shakeHurt: 0.35,
+  shakeTime: 0.25,
 };
 
 export type Tuning = typeof defaultTuning;
@@ -41,6 +60,21 @@ export const tuningSpecs: (TuningSpec & { key: TuningKey })[] = [
   { key: 'camBack', group: 'Camera', label: 'back (m)', min: 0, max: 20, step: 0.5 },
   { key: 'camFov', group: 'Camera', label: 'fov (°)', min: 30, max: 80, step: 1 },
   { key: 'camFollow', group: 'Camera', label: 'follow (1/s)', min: 1, max: 30, step: 0.5 },
+  { key: 'fireRate', group: 'Fire', label: 'rate (shots/s)', min: 1, max: 20, step: 0.5 },
+  { key: 'shotSpeed', group: 'Fire', label: 'shot speed (m/s)', min: 8, max: 60, step: 1 },
+  { key: 'shotDamage', group: 'Fire', label: 'damage', min: 0.25, max: 5, step: 0.25 },
+  { key: 'enemyHp', group: 'Enemy', label: 'hp', min: 1, max: 10, step: 1 },
+  { key: 'enemySpeed', group: 'Enemy', label: 'speed (m/s)', min: 0.5, max: 10, step: 0.1 },
+  { key: 'enemyAccel', group: 'Enemy', label: 'accel (m/s²)', min: 2, max: 100, step: 1 },
+  { key: 'enemyKnockback', group: 'Enemy', label: 'knockback (m/s)', min: 0, max: 20, step: 0.5 },
+  { key: 'enemySpawnTime', group: 'Enemy', label: 'spawn warning (s)', min: 0, max: 2, step: 0.05 },
+  { key: 'playerHp', group: 'Hurt', label: 'player hp', min: 1, max: 20, step: 1 },
+  { key: 'contactDamage', group: 'Hurt', label: 'contact damage', min: 0, max: 5, step: 0.5 },
+  { key: 'hurtInvuln', group: 'Hurt', label: 'invulnerable (s)', min: 0, max: 3, step: 0.05 },
+  { key: 'hurtKnockback', group: 'Hurt', label: 'knockback (m/s)', min: 0, max: 25, step: 0.5 },
+  { key: 'hitFlash', group: 'Feedback', label: 'hit flash (s)', min: 0, max: 0.3, step: 0.01 },
+  { key: 'shakeHurt', group: 'Feedback', label: 'hurt shake (m)', min: 0, max: 1, step: 0.05 },
+  { key: 'shakeTime', group: 'Feedback', label: 'shake time (s)', min: 0.05, max: 1, step: 0.05 },
 ];
 
 export function cloneDefaults(): Tuning {

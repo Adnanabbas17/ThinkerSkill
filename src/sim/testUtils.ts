@@ -26,5 +26,11 @@ export const emptyRoom = (overrides: Partial<Room> = {}): Room => ({
   obstacles: [],
   playerStart: { x: 0, y: 0 },
   playerRadius: 0.5,
+  spawnPoints: [
+    { x: -12, y: -8 },
+    { x: 12, y: -8 },
+    { x: -12, y: 8 },
+    { x: 12, y: 8 },
+  ],
   ...overrides,
 });
