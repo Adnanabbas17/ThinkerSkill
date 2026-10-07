@@ -14,10 +14,11 @@ import {
   WebGPURenderer,
 } from 'three/webgpu';
 import type { Room } from '../content/testRoom';
-import { ENEMY_RADIUS } from '../sim/enemies';
+import { SIM_DT } from '../sim/fixedStep';
 import { SHOT_RADIUS } from '../sim/projectiles';
 import type { SimEvent, SimState, Vec2 } from '../sim/types';
 import type { Tuning } from '../tuning/tuning';
+import { advanceGait, createRobotKit, type EnemyRobot } from './enemyRobot';
 import { loadHero, type Hero } from './hero';
 
 export type BackendName = 'WebGPU' | 'WebGL 2';
@@ -58,6 +59,8 @@ export const PALETTE = {
   heroTop: 0x0058f8,
   heroPants: 0xfcfcfc,
   enemy: 0x7c3c00,
+  enemyTrim: 0xa85c18,
+  enemyDark: 0x3a1c08,
   enemyEye: 0xfcfcfc,
   flash: 0xffffff,
   shot: 0xff2a00,
@@ -132,25 +135,30 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
     })
     .catch((err) => console.warn('Hero model failed to load; keeping the placeholder hero.', err));
 
-  // Enemies and shots: pooled meshes, one per live sim entity (by index).
-  const er = ENEMY_RADIUS;
-  const enemyBody = new BoxGeometry(er * 1.7, 0.6, er * 1.7);
-  const enemyEye = new BoxGeometry(er * 0.9, 0.18, 0.2);
-  const eyeMat = matte(PALETTE.enemyEye);
-  const enemyPool: { group: Group; mat: MeshStandardMaterial }[] = [];
+  // Enemies and shots: pooled, one per live sim entity (by index).
+  // Enemies are six-legged crawler robots sharing one set of geometries and materials.
+  const robots = createRobotKit({
+    body: PALETTE.enemy,
+    trim: PALETTE.enemyTrim,
+    eye: PALETTE.enemyEye,
+    dark: PALETTE.enemyDark,
+    flash: PALETTE.flash,
+    ...MATTE,
+  });
+  const enemyPool: EnemyRobot[] = [];
   const enemyAt = (i: number) => {
     while (enemyPool.length <= i) {
-      const mat = matte(PALETTE.enemy);
-      const group = new Group();
-      const body = new Mesh(enemyBody, mat);
-      body.position.y = 0.35;
-      const eye = new Mesh(enemyEye, eyeMat);
-      eye.position.set(0, 0.45, er * 0.85);
-      group.add(body, eye);
-      scene.add(group);
-      enemyPool.push({ group, mat });
+      const robot = robots.make();
+      scene.add(robot.group);
+      enemyPool.push(robot);
     }
     return enemyPool[i];
+  };
+  // Gait phase per enemy id, so legs keep their rhythm when pool order shifts after a kill.
+  const gaitPhase = new Map<number, number>();
+  const isAlive = (enemies: SimState['enemies'], id: number) => {
+    for (const e of enemies) if (e.id === id) return true;
+    return false;
   };
   const shotGeo = new SphereGeometry(SHOT_RADIUS * 1.4, 10, 8);
   const shotMat = new MeshStandardMaterial({ color: PALETTE.shot, emissive: PALETTE.shot, emissiveIntensity: 1.2 });
@@ -212,8 +220,11 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
         player.visible = shown;
       }
 
-      state.enemies.forEach((e, i) => {
-        const { group, mat } = enemyAt(i);
+      const enemies = state.enemies;
+      for (let i = 0; i < enemies.length; i++) {
+        const e = enemies[i];
+        const robot = enemyAt(i);
+        const group = robot.group;
         group.visible = true;
         const ex = lerp(e.prevPos.x, e.pos.x, alpha);
         const ez = lerp(e.prevPos.y, e.pos.y, alpha);
@@ -222,10 +233,18 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
         // Spawn warning: grows from small to full size.
         const grow = tuning.enemySpawnTime > 0 ? 1 - e.spawnTime / tuning.enemySpawnTime : 1;
         group.scale.setScalar(0.3 + 0.7 * grow);
-        mat.color.setHex(e.flash > 0 ? PALETTE.flash : PALETTE.enemy);
-        mat.emissive.setHex(e.flash > 0 ? PALETTE.flash : 0x000000);
-      });
-      for (let i = state.enemies.length; i < enemyPool.length; i++) enemyPool[i].group.visible = false;
+        robot.setFlash(e.flash > 0);
+        // Legs step with actual speed and stand still during the spawn warning.
+        const speed = Math.hypot(e.pos.x - e.prevPos.x, e.pos.y - e.prevPos.y) / SIM_DT;
+        const moving = e.spawnTime <= 0 && speed > 0.05;
+        const phase = advanceGait(gaitPhase.get(e.id) ?? 0, moving ? speed * frameDt : 0);
+        gaitPhase.set(e.id, phase);
+        robot.pose(phase, moving);
+      }
+      for (let i = enemies.length; i < enemyPool.length; i++) enemyPool[i].group.visible = false;
+      if (gaitPhase.size > enemies.length) {
+        for (const id of gaitPhase.keys()) if (!isAlive(enemies, id)) gaitPhase.delete(id);
+      }
 
       state.shots.forEach((s, i) => {
         const m = shotAt(i);
