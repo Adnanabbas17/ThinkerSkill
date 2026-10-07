@@ -1,21 +1,25 @@
 import {
+  AdditiveBlending,
   AmbientLight,
   BoxGeometry,
   Color,
   DirectionalLight,
   Group,
+  MathUtils,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
+  OctahedronGeometry,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
-  SphereGeometry,
   Vector3,
   WebGPURenderer,
 } from 'three/webgpu';
 import type { Room } from '../content/testRoom';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { ENEMY_RADIUS } from '../sim/enemies';
 import { SIM_DT } from '../sim/fixedStep';
-import { SHOT_RADIUS } from '../sim/projectiles';
 import type { SimEvent, SimState, Vec2 } from '../sim/types';
 import type { Tuning } from '../tuning/tuning';
 import { advanceGait, createRobotKit, type EnemyRobot } from './enemyRobot';
@@ -41,6 +45,15 @@ export function wantsForcedWebGL(search: string): boolean {
 }
 
 const WALL_THICKNESS = 0.6;
+/** Render-only effect sizes and times. */
+const SHOT_Y = 0.5;
+const TRACER_LENGTH = 0.6;
+const MUZZLE_TIME = 0.05;
+const MUZZLE_AHEAD = 1.2; // at the SMG's barrel tip (measured from screenshots), on the line the shots travel
+const MUZZLE_Y = 0.56;
+const IMPACT_TIME = 0.1;
+const IMPACT_POOL = 8;
+const SPARKS = 8;
 const WALL_HEIGHT = 1.6;
 const OBSTACLE_HEIGHT = 1.4;
 
@@ -63,7 +76,7 @@ export const PALETTE = {
   enemyDark: 0x3a1c08,
   enemyEye: 0xfcfcfc,
   flash: 0xffffff,
-  shot: 0xff2a00,
+  tracer: 0xfff0b0,
   ambient: 0xfff4e0,
   sun: 0xffffff,
 };
@@ -160,17 +173,69 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
     for (const e of enemies) if (e.id === id) return true;
     return false;
   };
-  const shotGeo = new SphereGeometry(SHOT_RADIUS * 1.4, 10, 8);
-  const shotMat = new MeshStandardMaterial({ color: PALETTE.shot, emissive: PALETTE.shot, emissiveIntensity: 1.2 });
-  const shotPool: Mesh[] = [];
+
+  // Shots: tracers, a thin bright core inside an additive glow, centred on the sim shot
+  // position and aligned with its direction (what you see is what hits).
+  const glow = (opacity: number) =>
+    new MeshBasicMaterial({ color: PALETTE.tracer, transparent: true, opacity, blending: AdditiveBlending, depthWrite: false });
+  // Flash and sparks blend normally so they keep the tracer colour on any background.
+  const flare = () => new MeshBasicMaterial({ color: PALETTE.tracer, transparent: true, depthWrite: false });
+  const tracerCoreGeo = new BoxGeometry(0.022, 0.022, TRACER_LENGTH);
+  const tracerGlowGeo = new BoxGeometry(0.05, 0.05, TRACER_LENGTH * 1.08);
+  const tracerCoreMat = new MeshBasicMaterial({ color: PALETTE.tracer });
+  const tracerGlowMat = glow(0.45);
+  const shotPool: Group[] = [];
   const shotAt = (i: number) => {
     while (shotPool.length <= i) {
-      const m = new Mesh(shotGeo, shotMat);
-      m.position.y = 0.45;
-      scene.add(m);
-      shotPool.push(m);
+      const g = new Group();
+      g.add(new Mesh(tracerCoreGeo, tracerCoreMat), new Mesh(tracerGlowGeo, tracerGlowMat));
+      g.position.y = SHOT_Y;
+      scene.add(g);
+      shotPool.push(g);
     }
     return shotPool[i];
+  };
+
+  // Muzzle flash: one flash in front of the hero on the line the shots travel, ~0.05 s per shot.
+  const muzzle = new Group(); // turned to the aim
+  const muzzleMat = flare();
+  muzzleMat.depthTest = false; // a flash at the barrel tip is never hidden by the gun itself
+  // A burst at the barrel tip: small core plus three prongs flaring forward (+Z).
+  const muzzleGeo = mergeGeometries([
+    new OctahedronGeometry(0.08),
+    new BoxGeometry(0.06, 0.06, 0.34).translate(0, 0, 0.17).toNonIndexed(),
+    new BoxGeometry(0.045, 0.045, 0.2).translate(0, 0, 0.1).rotateY(0.7).toNonIndexed(),
+    new BoxGeometry(0.045, 0.045, 0.2).translate(0, 0, 0.1).rotateY(-0.7).toNonIndexed(),
+  ]);
+  const muzzleFlash = new Mesh(muzzleGeo, muzzleMat);
+  muzzleFlash.renderOrder = 10;
+  muzzle.add(muzzleFlash);
+  muzzle.visible = false;
+  scene.add(muzzle);
+  let muzzleLeft = 0;
+
+  // Impacts: a short spark puff where a shot hits a wall, a box or an enemy. Pooled ring.
+  const sparkGeo = mergeGeometries([
+    new OctahedronGeometry(0.07), // centre burst (already non-indexed)
+    ...Array.from({ length: SPARKS }, (_, k) => {
+      const yaw = (k / SPARKS) * Math.PI * 2;
+      const pitch = MathUtils.degToRad(k % 2 === 0 ? 20 : 50);
+      return new BoxGeometry(0.035, 0.035, 0.2).translate(0, 0, 0.14).rotateX(-pitch).rotateY(yaw).toNonIndexed();
+    }),
+  ]);
+  const impacts = Array.from({ length: IMPACT_POOL }, () => {
+    const mesh = new Mesh(sparkGeo, flare());
+    mesh.visible = false;
+    scene.add(mesh);
+    return { mesh, mat: mesh.material, age: IMPACT_TIME };
+  });
+  let nextImpact = 0;
+  const impactAt = (x: number, y: number, z: number) => {
+    const fx = impacts[nextImpact];
+    nextImpact = (nextImpact + 1) % IMPACT_POOL;
+    fx.age = 0;
+    fx.mesh.position.set(x, y, z);
+    fx.mesh.rotation.y = Math.random() * Math.PI * 2;
   };
   let shake = 0;
 
@@ -246,13 +311,55 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
         for (const id of gaitPhase.keys()) if (!isAlive(enemies, id)) gaitPhase.delete(id);
       }
 
-      state.shots.forEach((s, i) => {
-        const m = shotAt(i);
-        m.visible = true;
-        m.position.x = lerp(s.prevPos.x, s.pos.x, alpha);
-        m.position.z = lerp(s.prevPos.y, s.pos.y, alpha);
-      });
-      for (let i = state.shots.length; i < shotPool.length; i++) shotPool[i].visible = false;
+      const shots = state.shots;
+      for (let i = 0; i < shots.length; i++) {
+        const s = shots[i];
+        const g = shotAt(i);
+        g.visible = true;
+        g.position.x = lerp(s.prevPos.x, s.pos.x, alpha);
+        g.position.z = lerp(s.prevPos.y, s.pos.y, alpha);
+        g.rotation.y = Math.atan2(s.dir.x, s.dir.y);
+      }
+      for (let i = shots.length; i < shotPool.length; i++) shotPool[i].visible = false;
+
+      // Effects from this frame's sim events.
+      for (let i = 0; i < events.length; i++) {
+        const ev = events[i];
+        if (ev.type === 'fire') {
+          muzzleLeft = MUZZLE_TIME;
+          muzzleFlash.rotation.z = Math.random() * Math.PI;
+        } else if (ev.type === 'shotBlocked') {
+          // Pull the sparks 0.12 m back towards the hero so they are not buried in the wall.
+          const dx = px - ev.pos.x;
+          const dz = pz - ev.pos.y;
+          const d = Math.hypot(dx, dz) || 1;
+          impactAt(ev.pos.x + (dx / d) * 0.12, SHOT_Y, ev.pos.y + (dz / d) * 0.12);
+        } else if (ev.type === 'enemyHit') {
+          // The event gives the enemy's centre; put the sparks on its side facing the hero.
+          const dx = px - ev.pos.x;
+          const dz = pz - ev.pos.y;
+          const d = Math.hypot(dx, dz) || 1;
+          impactAt(ev.pos.x + (dx / d) * ENEMY_RADIUS * 0.8, 0.42, ev.pos.y + (dz / d) * ENEMY_RADIUS * 0.8);
+        }
+      }
+      muzzle.visible = muzzleLeft > 0;
+      if (muzzleLeft > 0) {
+        const t = 1 - muzzleLeft / MUZZLE_TIME;
+        muzzle.position.set(px + p.aimDir.x * MUZZLE_AHEAD, MUZZLE_Y, pz + p.aimDir.y * MUZZLE_AHEAD);
+        muzzle.rotation.y = Math.atan2(p.aimDir.x, p.aimDir.y);
+        muzzle.scale.setScalar(1 + 0.6 * t);
+        muzzleMat.opacity = 1 - 0.7 * t;
+        muzzleLeft -= frameDt;
+      }
+      for (let i = 0; i < impacts.length; i++) {
+        const fx = impacts[i];
+        fx.mesh.visible = fx.age < IMPACT_TIME;
+        if (!fx.mesh.visible) continue;
+        const t = fx.age / IMPACT_TIME;
+        fx.mesh.scale.setScalar(0.8 + t);
+        fx.mat.opacity = 1 - t;
+        fx.age += frameDt;
+      }
 
       if (camera.fov !== tuning.camFov) {
         camera.fov = tuning.camFov;
