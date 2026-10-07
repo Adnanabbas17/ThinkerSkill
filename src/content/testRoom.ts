@@ -32,6 +32,16 @@ export const testRoom: Room = {
     { x: 8, y: -4, hw: 1.5, hh: 1 },
     { x: -5, y: 4.5, hw: 1, hh: 1.5 },
     { x: 5, y: 4.5, hw: 1, hh: 1.5 },
+    // Cover between the top spawn and the centre: two walls with a 2.5 m lane, so enemies
+    // pinned head-on at a single long wall cannot jam there.
+    { x: -2.25, y: -5.5, hw: 1, hh: 0.5 },
+    { x: 2.25, y: -5.5, hw: 1, hh: 0.5 },
+    // Small blocks: in front of the side spawns, between the bottom spawn and the centre, near the bottom corners.
+    { x: -10, y: 2, hw: 1, hh: 1 },
+    { x: 10, y: 2, hw: 1, hh: 1 },
+    { x: 0, y: 4.5, hw: 1.25, hh: 0.5 },
+    { x: -10, y: 6.5, hw: 1, hh: 0.75 },
+    { x: 10, y: 6.5, hw: 1, hh: 0.75 },
   ],
   playerStart: { x: 0, y: 0 },
   playerRadius: 0.5,
