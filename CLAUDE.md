@@ -1,9 +1,9 @@
 # Thinker Skill: project instructions
 
 ## Product
-Browser 3D top-down action game (twin-stick style). The player pilots a "Thinker" response drone inside a reactor facility in meltdown. One run lasts about 8 minutes.
+Browser 3D top-down action game (twin-stick style). The player is ThinkerFighter, a response engineer, inside a reactor facility in meltdown. One run lasts about 8 minutes.
 - Win: shut down the hidden source of the crisis with at least 1 of 3 reactor cores still online.
-- Lose: the Thinker is destroyed or all 3 cores are lost.
+- Lose: ThinkerFighter is destroyed or all 3 cores are lost.
 - Every run ends with a debrief: decision timeline, what was missed, one score per skill, and a total "Thinker Skill" rating.
 
 ## Design law: reflexes create pressure, thinking wins
@@ -15,7 +15,7 @@ Browser 3D top-down action game (twin-stick style). The player pilots a "Thinker
 ## v1 scope
 - 1 arena, 1 hero, 3 threat types, 3 tool modes, 3 cores, 1 hidden source per run (position seeded).
 - Controls: WASD move, mouse aim, left click fire, Shift dash, 1/2/3 tool mode, hold E to scan.
-- No humanoid characters. Hero and enemies are machines animated in code (no skeletal animation).
+- Hero is one human character with skeletal animation. Enemies are machines animated in code.
 
 ## Hard constraints
 - Static site only. No backend, accounts, API keys, or paid services. Saves use localStorage.
@@ -57,7 +57,7 @@ Low, Medium, High quality setting. No graphics work before Milestone 2 is accept
 4. Release: itch.io page, README, credits.
 
 ## Not in v1
-Multiplayer, leaderboards, mobile and touch, gamepad, story campaign, voice acting, humanoid characters, a second arena, bosses, monetization.
+Multiplayer, leaderboards, mobile and touch, gamepad, story campaign, voice acting, human enemies, NPCs, character customization, a second arena, bosses, monetization.
 
 ## Definition of done for v1
 A stranger opens a public URL in a desktop browser, plays a full run with no help from me, gets a per-skill debrief, and the game holds 60 fps.

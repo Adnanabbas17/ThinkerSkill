@@ -1,6 +1,6 @@
 # Thinker Skill
 
-A browser 3D top-down action game. You pilot a "Thinker" response drone through a reactor facility in meltdown. Reflexes create the pressure; critical thinking, triage, and problem solving win the run. Each run ends with a per-skill debrief.
+A browser 3D top-down action game. You play ThinkerFighter, a response engineer, in a reactor facility in meltdown. Reflexes create the pressure; critical thinking, triage, and problem solving win the run. Each run ends with a per-skill debrief.
 
 **Status:** Milestone 1 (feel prototype, grey boxes) in progress.
 
