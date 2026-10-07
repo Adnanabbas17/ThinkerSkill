@@ -18,6 +18,7 @@ import { ENEMY_RADIUS } from '../sim/enemies';
 import { SHOT_RADIUS } from '../sim/projectiles';
 import type { SimEvent, SimState, Vec2 } from '../sim/types';
 import type { Tuning } from '../tuning/tuning';
+import { loadHero, type Hero } from './hero';
 
 export type BackendName = 'WebGPU' | 'WebGL 2';
 
@@ -54,6 +55,8 @@ export const PALETTE = {
   player: 0xfcfcfc,
   playerNose: 0xd82800,
   playerDestroyed: 0x3c3c3c,
+  heroTop: 0x0058f8,
+  heroPants: 0xfcfcfc,
   enemy: 0x7c3c00,
   enemyEye: 0xfcfcfc,
   flash: 0xffffff,
@@ -62,7 +65,8 @@ export const PALETTE = {
   sun: 0xffffff,
 };
 
-const matte = (hex: number) => new MeshStandardMaterial({ color: hex, roughness: 0.9, metalness: 0 });
+const MATTE = { roughness: 0.9, metalness: 0 };
+const matte = (hex: number) => new MeshStandardMaterial({ color: hex, ...MATTE });
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
 function box(w: number, h: number, d: number, mat: MeshStandardMaterial, x: number, y: number, z: number): Mesh {
@@ -109,7 +113,8 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
     scene.add(box(o.hw * 2, OBSTACLE_HEIGHT, o.hh * 2, obstacleMat, o.x, OBSTACLE_HEIGHT / 2, o.y));
   }
 
-  // Player drone: body plus a nose that points along the aim (+z in local space).
+  // Placeholder hero: body plus a nose that points along the aim (+z in local space).
+  // Shown until the ThinkerFighter model has loaded, and for good if it fails to load.
   const player = new Group();
   const pr = room.playerRadius;
   const playerMat = matte(PALETTE.player);
@@ -117,6 +122,15 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
   player.add(box(pr * 1.8, 0.5, pr * 1.8, playerMat, 0, 0.45, 0));
   player.add(box(0.2, 0.2, 0.55, noseMat, 0, 0.45, pr + 0.15));
   scene.add(player);
+
+  let hero: Hero | null = null;
+  loadHero(`${import.meta.env.BASE_URL}models/hero.glb`, { top: PALETTE.heroTop, pants: PALETTE.heroPants, ...MATTE })
+    .then((h) => {
+      hero = h;
+      scene.add(h.object);
+      player.visible = false;
+    })
+    .catch((err) => console.warn('Hero model failed to load; keeping the placeholder hero.', err));
 
   // Enemies and shots: pooled meshes, one per live sim entity (by index).
   const er = ENEMY_RADIUS;
@@ -183,14 +197,20 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
       const p = state.player;
       const px = lerp(p.prevPos.x, p.pos.x, alpha);
       const pz = lerp(p.prevPos.y, p.pos.y, alpha);
-      player.position.set(px, 0, pz);
-      player.rotation.y = Math.atan2(p.aimDir.x, p.aimDir.y);
       const destroyed = state.status === 'lost';
-      player.scale.set(1, destroyed ? 0.35 : 1, 1);
-      playerMat.color.setHex(destroyed ? PALETTE.playerDestroyed : PALETTE.player);
-      noseMat.color.setHex(destroyed ? PALETTE.playerDestroyed : PALETTE.playerNose);
       // Blink while invulnerable after a hit.
-      player.visible = destroyed || p.invulnTime <= 0 || Math.floor(state.tick / 4) % 2 === 0;
+      const shown = destroyed || p.invulnTime <= 0 || Math.floor(state.tick / 4) % 2 === 0;
+      if (hero) {
+        hero.update(state, px, pz, frameDt, tuning, events);
+        hero.object.visible = shown;
+      } else {
+        player.position.set(px, 0, pz);
+        player.rotation.y = Math.atan2(p.aimDir.x, p.aimDir.y);
+        player.scale.set(1, destroyed ? 0.35 : 1, 1);
+        playerMat.color.setHex(destroyed ? PALETTE.playerDestroyed : PALETTE.player);
+        noseMat.color.setHex(destroyed ? PALETTE.playerDestroyed : PALETTE.playerNose);
+        player.visible = shown;
+      }
 
       state.enemies.forEach((e, i) => {
         const { group, mat } = enemyAt(i);
