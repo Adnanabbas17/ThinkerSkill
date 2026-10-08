@@ -1,7 +1,8 @@
 # Milestone 2 plan: the thinking loop
 
 Status: **revision 3.** Slice 0 is built and its playtest passed. Arena Proposal A (40 x 32 m) and a Pulse range
-of 14 m are approved. Proposal B (keep 40 x 28, move room N west) was rejected. Slice 1a is not started.
+of 14 m are approved. Proposal B (keep 40 x 28, move room N west) was rejected. Pulse range playtest passed.
+Slice 1a is built and deployed, waiting for the owner's playtest. Slice 1b is not started.
 
 M1 acceptance: WAIVED. The 5-first-time-player test was not run. Owner
 playtests passed (movement, dash, camera, hero, slice 0). Recorded risk:
@@ -78,6 +79,22 @@ is possible.
   with room interiors included in the standing points.
 - **Browser check:** three grey core pillars with bars in the HUD; robots walk to cores and bars drop; let all
   three fall and the run ends with "All cores lost".
+- **As built (owner-approved decisions):**
+  - Target rule: at spawn, an enemy chases the hero with chance `chasePlayerShare` (0.25); otherwise it picks an
+    online core by weight (equal for A, B, C). The target is fixed; if that core is lost, the enemy switches to
+    the nearest core still online. Core attackers ignore the hero but still hurt it on contact, and stay
+    against their core, clawing, until killed. `coreDamagePerSec` = 4 per touching enemy.
+  - `chasePlayerShare` has one source of truth: tuning, for now. It moves to threat data (`ThreatDef`) when
+    threat types arrive in slice 3.
+  - Navigation: the slice 0 slide rule sent enemies into dead-end corners where a source room meets the outer
+    wall (2 of 24 vent-to-core pairs never arrived; 7 of 24 with groups of 6). Fix: if the nearer end of a face
+    is closed, slide towards the other end. Guarded by `src/sim/arenaNav.test.ts` (runs in CI): every vent to
+    every core within 15 s and at most 4 s over a straight walk, groups of 6 within 20 s. Re-run it after any
+    layout change. Still local steering; reconsider a grid flow field if slice 5 doors break it.
+  - No invisible walls: the arena's obstacles are built from one tagged list of solids, the renderer draws one
+    box per entry, and a test checks there is exactly one drawn part per obstacle. Vents, terminals and labels
+    are never obstacles.
+  - Cut to later slices: N/S/W/E floor labels (slice 5); doors, breakers, terminals, vent valves are data only.
 
 ### Slice 1b: endless waves, run log
 - **Files:** `src/content/waves.ts` (new: endless schedule and onboarding ramp, section 2), `src/sim/waves.ts`,
@@ -468,4 +485,4 @@ win per bot.
 | R3 | Players miss the point of scanning | Disguise share starts at 0 and grows; first disguised threat appears only after the player has seen all 3 types. |
 | R4 | Run log growth over 8 min | Roughly a few thousand entries; fine for memory and the determinism test. |
 | R5 | Performance with more objects | All grey boxes share geometry and materials (as the robots do); check fps in slice 5 and 8. |
-| R6 | Known asymmetry: at 14 m only A+B is coverable from one spot (x -15 to -10.5, y -2 to 2). At 12 m the A+B margin is only 0.13 m, smaller than an enemy radius, so 12 m is NOT a reliable fix. | No change now. If the asymmetry needs fixing, consider moving core A. Revisit after the bot tests. |
+| R6 | Known asymmetry. With real reach at pulseRange 14 (hero centre to enemy centre about 15.07 m, enemies touching the near side of a core, shots blocked by solids), only A+B is coverable from one spot, from **x -15 to -2.5, y -3.75 to 3.5** (within 2.5 m of the start). B+C is in reach by distance only near (0, 10), just north of room S's door; covers (-9, 11) and (9, 11) block those shots, so moving them would open B+C. A+C and all 3: never. At 12 m the A+B margin (centre-distance measure) is only 0.13 m, smaller than an enemy radius, so 12 m is NOT a reliable fix. | No change now. If the asymmetry needs fixing, consider moving core A. Revisit after the bot tests. |
