@@ -156,15 +156,22 @@ describe('arena layout', () => {
     expect(bothInS).toBeGreaterThan(0); // the corrected claim is real, not vacuous
   });
 
-  it('no spot lets Pulse reach enemies at all 3 cores (real reach, ignoring cover)', () => {
-    // Hero centre to enemy centre: muzzle offset + range + enemy and shot radii (about 15.07 m).
+  it('at the default pulseRange, no open-floor spot lets Pulse reach enemies at 2 cores (real reach, ignoring cover)', () => {
+    // Hero centre to enemy centre: muzzle offset + range + enemy and shot radii. Cover is ignored,
+    // so moving a cover block can never open a pair. Checked on a 0.1 m grid.
     const reach = r + defaultTuning.pulseRange + ENEMY_RADIUS + SHOT_RADIUS;
-    for (const p of grid(arena.minX, arena.maxX, arena.minY, arena.maxY)) {
-      if (!standable(p)) continue;
-      // An enemy touching the near side of a core stands ENEMY_RADIUS outside its box.
-      const covered = arena.cores.filter(({ box }) => distToBox(p, box) - ENEMY_RADIUS <= reach);
-      expect(covered.length, `${p.x},${p.y}`).toBeLessThan(3);
+    let checked = 0;
+    for (let x = arena.minX; x <= arena.maxX + 1e-9; x += 0.1) {
+      for (let y = arena.minY; y <= arena.maxY + 1e-9; y += 0.1) {
+        const p = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+        if (!standable(p)) continue;
+        checked++;
+        // An enemy touching the near side of a core stands ENEMY_RADIUS outside its box.
+        const covered = arena.cores.filter(({ box }) => distToBox(p, box) - ENEMY_RADIUS <= reach);
+        if (covered.length >= 2) expect.fail(`cores ${covered.map((c) => c.id).join('+')} both in reach from ${p.x}, ${p.y}`);
+      }
     }
+    expect(checked).toBeGreaterThan(80000);
   });
 });
 

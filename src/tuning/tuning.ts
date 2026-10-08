@@ -28,7 +28,7 @@ export const defaultTuning = {
   fireRate: 6,
   shotSpeed: 28,
   shotDamage: 1,
-  pulseRange: 14,
+  pulseRange: 10.5,
   // Enemy
   enemyHp: 4,
   enemySpeed: 3.6,

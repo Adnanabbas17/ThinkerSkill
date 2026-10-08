@@ -98,7 +98,8 @@ describe('pulse range', () => {
   // Wide open room, so walls never stop a shot before its range does.
   const wide = emptyRoom({ minX: -40, maxX: 40 });
   // Enemies stand still, so distances stay exact.
-  const still = { ...t, enemySpeed: 0 };
+  // The mechanism tests pin a 14 m range (the default is set by the arena rule, see arena.test.ts).
+  const still = { ...t, enemySpeed: 0, pulseRange: 14 };
   const muzzle = wide.playerRadius; // shots spawn this far ahead of the hero, along the aim
 
   /** Fire one shot along +x at an enemy `dist` metres from the muzzle; true if it is hit. */
@@ -115,8 +116,7 @@ describe('pulse range', () => {
     return hit;
   };
 
-  it('hits an enemy 13 m away at the default 14 m range', () => {
-    expect(still.pulseRange).toBe(14);
+  it('hits an enemy 13 m away at a 14 m range', () => {
     expect(hitsAt(13)).toBe(true);
   });
 
