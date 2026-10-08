@@ -1,6 +1,11 @@
 # Milestone 2 plan: the thinking loop
 
-Status: **reviewed by the owner; revision 2.** Slice 0 approved to start. Nothing else is built yet.
+Status: **revision 3.** Slice 0 is built and its playtest passed. Arena Proposal A (40 x 32 m) and a Pulse range
+of 14 m are approved. Proposal B (keep 40 x 28, move room N west) was rejected. Slice 1a is not started.
+
+M1 acceptance: WAIVED. The 5-first-time-player test was not run. Owner
+playtests passed (movement, dash, camera, hero, slice 0). Recorded risk:
+the M2 acceptance test now doubles as the controls check.
 
 Goal (from CLAUDE.md): full v1 scope in grey boxes, win and lose, debrief. Accepted when Bot A loses at least
 9 of 10 seeds, Bot B wins at least 8 of 10, and 3 of 5 first-time players finish a run without help and start
@@ -69,7 +74,8 @@ is possible.
   cores are lost. Waves stay the current finite list for now (temporary; clearing them still ends the run).
 - **Unit tests:** core damage over time; core lost at 0 and stops taking damage; lose when all 3 lost and not before;
   targeting is seeded and repeatable; arena reachability (every spawn vent reaches every core and the player
-  start) like `testRoom.test.ts`.
+  start) like `testRoom.test.ts`; arena camera check asserting the corrected claim in section 2 ("Arena layout"),
+  with room interiors included in the standing points.
 - **Browser check:** three grey core pillars with bars in the HUD; robots walk to cores and bars drop; let all
   three fall and the run ends with "All cores lost".
 
@@ -214,11 +220,43 @@ interface DoorDef { id: string; box: Box; heldBy: BreakerId }
 interface BreakerDef { id: 1 | 2 | 3; pos: Vec2; feedsCore: CoreId }
 interface TerminalDef { id: string; pos: Vec2 }
 ```
-- Proposed size 40 x 28 m (today 30 x 20). Cores in a triangle around the centre, about 9 m apart. The 4 source
-  rooms sit in the middle of each edge, each 6 x 4 m with one door facing inward. Breakers sit together in a
-  small control area so flipping one is a visible, deliberate trip. Terminals are spread so reading all 6 costs
-  real time.
 - Layout rules from the M1 room carry over (2.5 m gaps, no closed pockets, reachability test).
+
+### Arena layout (approved: Proposal A)
+Size 40 x 32 m: x from -20 to 20, y from -16 to 16 (y points towards the camera). Centre positions, sizes in metres.
+40 x 28 was rejected: with the 4 rooms fixed, no core placement met the rules (best shortest core-to-core walk 2.87 s,
+under the 3 s minimum).
+
+| Element | Position | Size |
+|---|---|---|
+| Core A (north) | (-8, -12.5) | 1.6 x 1.6 |
+| Core B (south-west) | (-16, 12.5) | 1.6 x 1.6 |
+| Core C (south-east) | (16, 12.5) | 1.6 x 1.6 |
+| Room N / S | (0, -13.75) / (0, 13.75) | 7 x 4.5 |
+| Room W / E | (-17.75, 0) / (17.75, 0) | 4.5 x 7 |
+| Doors N / S / W / E | (0, -11.5), (0, 11.5), (-15.5, 0), (15.5, 0) | 2 m wide |
+| Cover 1-4 | (-8, -5), (8, -5), (-8, 5), (8, 5) | 3 x 1 |
+| Cover 5-8 | (-13, -9.5), (13, -9.5), (-9, 11), (9, 11) | 2 x 1.5 |
+| Console | (0, 4); breakers 1/2/3 at x -1.5, 0, 1.5 on its north face | 5 x 0.6 |
+| Spawn vents V1-V8 | (-18, -14), (18, -14), (-18, -7), (18, -7), (-18, 7), (18, 7), (-8, 14), (8, 14) | points |
+| Terminals T1-T6 | (-13, -13.5), (13, -13.5), (-11, 1.5), (11, 1.5), (-12, 8), (12, 8) | floor pads |
+| Floor labels N / S / W / E | (0, -9.5), (0, 9.5), (-13.5, 0), (13.5, 0) | about 1.5 m letters, flat, non-blocking |
+| Floor labels A / B / C | (-8, -10), (-13.5, 12.5), (13.5, 12.5) | same |
+| Player start | (0, 0) | - |
+
+Measured with the default camera (height 16, back 9, FOV 50, 16:9) and Pulse range 14 m:
+- **Camera:** At most 1 core on screen from open floor. From inside room S, B and C both show. Never all 3 from
+  anywhere.
+- **Walks between cores (7 m/s, no dash):** A-B 3.50 s, A-C 4.55 s, B-C 4.29 s.
+- **Pulse:** at most 2 cores coverable from one spot; all 3 would need about 17.2 to 17.5 m. See R6.
+- **Gaps:** between solids 3.51 m; solids to outer wall 2.70 m; start clearance 3.70 m; vent clearance 2.00 m.
+- **Reachability:** all vents, terminals and labels connect to the start; each core is approachable from 4 sides.
+- Start to cores: A 2.0 s, B 2.8 s, C 2.8 s (information only).
+
+### Pulse range
+`pulseRange` = 14 m (tuning, live-editable). A Pulse shot is removed once it has travelled `pulseRange`. At least
+13.3 m keeps shots reaching the top edge of the screen; under 17.2 m keeps any one spot from covering all 3 cores.
+Built ahead of slice 1a; it also applies in `?room=test`.
 
 ### Threats (`threats.ts`)
 | Type | Grey-box look | Behaviour | Counter tool |
@@ -410,8 +448,8 @@ win per bot.
 
 | # | Question or risk | Recommendation |
 |---|---|---|
-| Q1 | Milestone 1 acceptance (5 first-time players) has not been reported. CLAUDE.md says one milestone at a time. | Run the M1 playtest before slice 1, or explicitly waive it. Slice 0 can start now. |
-| Q2 | Arena size | 40 x 28 m. Big enough for 4 rooms, 3 cores and 6 terminals with 2.5 m lanes; the camera already follows. |
+| Q1 | Milestone 1 acceptance (5 first-time players) | **Decided:** waived. See the status note at the top. |
+| Q2 | Arena size | **Decided:** 40 x 32 m (Proposal A) with Pulse range 14 m. 40 x 28 could not meet the layout rules. See section 2, "Arena layout". |
 | Q3 | How can a human tell a false alarm? | **Decided:** the alarmed core's HUD bar shows a spoofed drop (reported integrity) while real integrity is unchanged. Only a scan of the core or a visit reveals the true value. Real damage always shows. |
 | Q4 | How can a human tell a false clue? | Corroboration: true facts appear twice, false ones once and contradict a true one. Scanning stays for threats only. |
 | Q5 | Wrong tool effect | 0 damage, energy spent, "RESISTED" shown. Clear feedback beats partial damage. |
@@ -423,8 +461,10 @@ win per bot.
 | Q11 | Score weights | Use the ones in section 3 now; retune after playtests. |
 | Q12 | Visual exceptions already approved (hero model, robots, tracers, palette) vs "grey boxes" | Keep what exists; all new objects are grey boxes. |
 | Q13 | Spoofed bars could feel unfair if they look exactly like real damage | Keep one honest cue: a real attack also triggers the core's grey-box flicker in the world; a spoof only changes the HUD bar. Confirm in the slice 4 playtest. |
+| Q14 | **Open, decide in slice 1b:** should scanning need line of sight and a range limit, so room S cannot be used to scan threats at B and C from safety? | No code now. |
 | R1 | Biggest milestone so far: 10 slices (0, 1a, 1b, 2 to 8) with many new rules | Strict slice order; each slice stays playable; stop for playtest after slices 3 and 4. |
 | R2 | Balance churn between slices | Bots report from slice 5 so problems show early; tuning changes always proposed first. |
 | R3 | Players miss the point of scanning | Disguise share starts at 0 and grows; first disguised threat appears only after the player has seen all 3 types. |
 | R4 | Run log growth over 8 min | Roughly a few thousand entries; fine for memory and the determinism test. |
 | R5 | Performance with more objects | All grey boxes share geometry and materials (as the robots do); check fps in slice 5 and 8. |
+| R6 | Known asymmetry: at 14 m only A+B is coverable from one spot (x -15 to -10.5, y -2 to 2). At 12 m no pair is coverable. | No change now. Revisit after the bot tests. |

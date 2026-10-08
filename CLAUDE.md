@@ -49,6 +49,13 @@ Stylized high-quality 3D, not photorealism: PBR materials, real-time shadows, bl
 Action feedback: hit flash, screen shake, knockback, muzzle and impact particles.
 Low, Medium, High quality setting. No graphics work before Milestone 2 is accepted.
 
+## Approved exceptions
+- Hero: one human character, ThinkerFighter, with skeletal animation. Enemies stay machines.
+- Colour palette: Mario-style colour theme.
+- Gunfire visuals and audio: tracers, muzzle flash, impact sparks, synthesized gunshot.
+- Bot C: report-only test bot (same as Bot B but ignores clues and tries breakers at random). Its win rate is shown next to Bot B's to prove clues matter. Never enforced.
+- No other graphics work is allowed before Milestone 2 is accepted. All new Milestone 2 objects are grey boxes.
+
 ## Milestones (one at a time; I approve each before the next starts)
 0. Scaffold: build and tests pass, empty scene is live on GitHub Pages.
 1. Feel prototype (grey boxes): move, aim, dash, one tool, one enemy, tuning panel, placeholder sounds. Accepted when 3 of 5 first-time players clear the test room within 3 tries and none call the controls laggy or confusing.
