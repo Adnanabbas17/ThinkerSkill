@@ -38,7 +38,8 @@ describe('firing', () => {
 
   it('a shot stops at a wall and reports where', () => {
     const s = createSim(room, 1);
-    stepSim(s, shoot(), t, room);
+    // Aim at the top wall (9.5 m from the muzzle), inside pulseRange.
+    stepSim(s, shoot({ x: 0, y: -10 }), t, room);
     let blocked = null;
     for (let i = 0; i < 120 && s.shots.length; i++) {
       stepSim(s, idle(), t, room);
@@ -90,5 +91,61 @@ describe('hitting enemies', () => {
     }
     expect(s.enemies).toEqual([]);
     expect(killed).toBe(1);
+  });
+});
+
+describe('pulse range', () => {
+  // Wide open room, so walls never stop a shot before its range does.
+  const wide = emptyRoom({ minX: -40, maxX: 40 });
+  // Enemies stand still, so distances stay exact.
+  const still = { ...t, enemySpeed: 0 };
+  const muzzle = wide.playerRadius; // shots spawn this far ahead of the hero, along the aim
+
+  /** Fire one shot along +x at an enemy `dist` metres from the muzzle; true if it is hit. */
+  const hitsAt = (dist: number, tuning = still): boolean => {
+    const s = createSim(wide, 1);
+    spawnEnemy(s, { x: muzzle + dist, y: 0 }, tuning);
+    stepSim(s, shoot({ x: 100, y: 0 }), tuning, wide);
+    let hit = false;
+    for (let i = 0; i < 300 && s.shots.length; i++) {
+      stepSim(s, idle({ x: 100, y: 0 }), tuning, wide);
+      hit ||= s.events.some((e) => e.type === 'enemyHit');
+    }
+    expect(s.shots).toEqual([]);
+    return hit;
+  };
+
+  it('hits an enemy 13 m away at the default 14 m range', () => {
+    expect(still.pulseRange).toBe(14);
+    expect(hitsAt(13)).toBe(true);
+  });
+
+  it('misses an enemy 15 m away: the shot is removed first', () => {
+    expect(hitsAt(15)).toBe(false);
+  });
+
+  it('changing pulseRange changes the result', () => {
+    expect(hitsAt(15, { ...still, pulseRange: 16 })).toBe(true);
+    expect(hitsAt(13, { ...still, pulseRange: 12 })).toBe(false);
+  });
+
+  it('a shot travels exactly pulseRange, whatever the shot speed', () => {
+    for (const shotSpeed of [8, 28, 37.3, 60, 200]) {
+      const tuning = { ...still, shotSpeed };
+      const s = createSim(wide, 1);
+      stepSim(s, shoot({ x: 100, y: 0 }), tuning, wide);
+      const start = { ...s.shots[0].prevPos };
+      let max = 0;
+      let blocked = false;
+      for (let i = 0; i < 300 && s.shots.length; i++) {
+        stepSim(s, idle({ x: 100, y: 0 }), tuning, wide);
+        for (const sh of s.shots) max = Math.max(max, Math.hypot(sh.pos.x - start.x, sh.pos.y - start.y));
+        blocked ||= s.events.some((e) => e.type === 'shotBlocked');
+      }
+      expect(s.shots).toEqual([]);
+      expect(blocked).toBe(false);
+      expect(max).toBeLessThanOrEqual(tuning.pulseRange + 1e-9);
+      expect(max).toBeGreaterThan(tuning.pulseRange - shotSpeed * SIM_DT);
+    }
   });
 });

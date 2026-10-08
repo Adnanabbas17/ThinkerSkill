@@ -15,7 +15,7 @@ export function fire(s: SimState, input: TickInput, t: Tuning, room: Room): void
   if (!input.fire || p.fireCooldown > 1e-9) return;
   p.fireCooldown += 1 / t.fireRate;
   const pos = { x: p.pos.x + p.aimDir.x * room.playerRadius, y: p.pos.y + p.aimDir.y * room.playerRadius };
-  s.shots.push({ id: s.nextId++, pos, prevPos: copy(pos), dir: copy(p.aimDir) });
+  s.shots.push({ id: s.nextId++, pos, prevPos: copy(pos), dir: copy(p.aimDir), travelled: 0 });
   s.events.push({ type: 'fire' });
 }
 
@@ -29,7 +29,9 @@ function blocked(x: number, y: number, room: Room): boolean {
 
 /**
  * Move shots in sub-steps of at most MAX_SUBSTEP so fast shots cannot skip
- * past thin obstacles or enemies. A shot stops at the first thing it touches.
+ * past thin obstacles or enemies. A shot stops at the first thing it touches, or once it
+ * has travelled pulseRange: the last sub-step is clamped so it never flies further, whatever
+ * the shot speed or sub-step count.
  */
 export function stepShots(s: SimState, t: Tuning, room: Room): void {
   const dist = t.shotSpeed * SIM_DT;
@@ -42,8 +44,10 @@ export function stepShots(s: SimState, t: Tuning, room: Room): void {
     // Check the spawn point too: a shot fired into a wall dies at once.
     for (let i = 0; i <= steps; i++) {
       if (i > 0) {
-        shot.pos.x += shot.dir.x * stepLen;
-        shot.pos.y += shot.dir.y * stepLen;
+        const len = Math.max(0, Math.min(stepLen, t.pulseRange - shot.travelled));
+        shot.pos.x += shot.dir.x * len;
+        shot.pos.y += shot.dir.y * len;
+        shot.travelled += len;
       }
       if (blocked(shot.pos.x, shot.pos.y, room)) {
         s.events.push({ type: 'shotBlocked', pos: copy(shot.pos) });
@@ -65,6 +69,8 @@ export function stepShots(s: SimState, t: Tuning, room: Room): void {
         }
         return false;
       }
+      // Out of range: checked after walls and enemies, so a target right at the limit is still hit.
+      if (shot.travelled >= t.pulseRange) return false;
     }
     return true;
   });

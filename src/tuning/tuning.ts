@@ -28,6 +28,7 @@ export const defaultTuning = {
   fireRate: 6,
   shotSpeed: 28,
   shotDamage: 1,
+  pulseRange: 14,
   // Enemy
   enemyHp: 4,
   enemySpeed: 3.6,
@@ -63,6 +64,7 @@ export const tuningSpecs: (TuningSpec & { key: TuningKey })[] = [
   { key: 'fireRate', group: 'Fire', label: 'rate (shots/s)', min: 1, max: 20, step: 0.5 },
   { key: 'shotSpeed', group: 'Fire', label: 'shot speed (m/s)', min: 8, max: 60, step: 1 },
   { key: 'shotDamage', group: 'Fire', label: 'damage', min: 0.25, max: 5, step: 0.25 },
+  { key: 'pulseRange', group: 'Fire', label: 'pulse range (m)', min: 4, max: 40, step: 0.5 },
   { key: 'enemyHp', group: 'Enemy', label: 'hp', min: 1, max: 10, step: 1 },
   { key: 'enemySpeed', group: 'Enemy', label: 'speed (m/s)', min: 0.5, max: 10, step: 0.1 },
   { key: 'enemyAccel', group: 'Enemy', label: 'accel (m/s²)', min: 2, max: 100, step: 1 },

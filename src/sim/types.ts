@@ -55,6 +55,8 @@ export interface ShotState {
   prevPos: Vec2;
   /** Unit direction. */
   dir: Vec2;
+  /** Distance flown since it was fired (m); the shot is removed at pulseRange. */
+  travelled: number;
 }
 
 export interface WaveProgress {
