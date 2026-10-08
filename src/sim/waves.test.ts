@@ -6,7 +6,7 @@ import { createSim, stepSim } from './sim';
 import { emptyRoom, idle } from './testUtils';
 import type { SimState } from './types';
 import { pickTarget, SPAWN_MIN_DIST, spawnInterval } from './waves';
-import { endlessRules, type EndlessRules } from '../content/waves';
+import { endlessRules, rampHint, type EndlessRules, type RampStep } from '../content/waves';
 import type { CoreDef } from '../content/testRoom';
 
 const t = cloneDefaults();
@@ -139,7 +139,7 @@ describe('waves', () => {
 });
 
 describe('endless waves', () => {
-  const rules: EndlessRules = { firstSpawn: 1.5, startInterval: 3, endInterval: 1, rampSeconds: 300, maxAlive: 20 };
+  const rules: EndlessRules = { firstSpawn: 1.5, startInterval: 3, endInterval: 1, rampSeconds: 300, maxAlive: 20, ramp: [] };
   const tuning = { ...t, playerHp: 999 };
   /** Spawn ticks over `seconds`, killing every enemy each tick so maxAlive never holds spawns back. */
   const spawnTicks = (seconds: number, r = rules, seed = 1) => {
@@ -203,5 +203,59 @@ describe('endless waves', () => {
     expect(run(4)).toBe(run(4));
     expect(run(4)).not.toBe(run(5));
     expect(endlessRules.maxAlive).toBeGreaterThan(0);
+  });
+});
+
+describe('onboarding ramp', () => {
+  const tuning = { ...t, playerHp: 999 };
+  const ramp: RampStep[] = [
+    { unlock: 'crawler', at: 0, hint: 'first' },
+    { unlock: 'overheater', at: 40, hint: 'second' },
+    { unlock: 'relay', at: null, hint: 'not built yet' },
+    { unlock: 'disguise', at: 100, hint: 'third' },
+  ];
+  const rules: EndlessRules = { firstSpawn: 1.5, startInterval: 3, endInterval: 1, rampSeconds: 300, maxAlive: 20, ramp };
+  /** [tick, step] for every hint over `seconds`. */
+  const hints = (seconds: number, r = rules) => {
+    const s = createSim(room, 1, [], r);
+    const out: [number, string][] = [];
+    for (let i = 0; i < seconds * 60; i++) {
+      stepSim(s, idle(), tuning, room);
+      killAll(s);
+      for (const e of s.events) if (e.type === 'hint') out.push([s.tick - 1, e.step]);
+    }
+    return { out, s };
+  };
+
+  it('fires each step once, exactly at its time, in order', () => {
+    const { out } = hints(130);
+    expect(out).toEqual([[0, 'crawler'], [40 * 60, 'overheater'], [100 * 60, 'disguise']]);
+  });
+
+  it('never fires a step with no time yet, and does not repeat after more minutes', () => {
+    const { out, s } = hints(400);
+    expect(out.map((o) => o[1])).not.toContain('relay');
+    expect(out).toHaveLength(3);
+    expect(s.rampDone).toEqual(['crawler', 'overheater', 'disguise']);
+  });
+
+  it('the hint event is logged with its tick', () => {
+    const { s } = hints(45);
+    expect(s.log.filter((l) => l.event.type === 'hint').map((l) => [l.tick, l.event])).toEqual([
+      [0, { type: 'hint', step: 'crawler' }],
+      [40 * 60, { type: 'hint', step: 'overheater' }],
+    ]);
+  });
+
+  it('the shipped ramp shows only the crawler hint for now, with text for every step', () => {
+    expect(endlessRules.ramp.filter((r) => r.at !== null).map((r) => r.unlock)).toEqual(['crawler']);
+    for (const r of endlessRules.ramp) expect(rampHint(r.unlock)).toBe(r.hint);
+    expect(rampHint('crawler')).toMatch(/Crawlers/);
+  });
+
+  it('a room without endless rules emits no hints', () => {
+    const s = createSim(room, 1, waves);
+    for (let i = 0; i < 600; i++) stepSim(s, idle(), tuning, room);
+    expect(s.rampDone).toEqual([]);
   });
 });

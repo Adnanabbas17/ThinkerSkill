@@ -1,5 +1,5 @@
 import type { CoreId } from '../content/testRoom';
-import type { EndlessRules } from '../content/waves';
+import type { EndlessRules, RampUnlock } from '../content/waves';
 import type { Wave } from '../content/testWaves';
 
 export interface Vec2 {
@@ -100,6 +100,8 @@ export type SimEvent =
   | { type: 'playerDestroyed' }
   | { type: 'waveStart'; wave: number }
   | { type: 'roomCleared' }
+  /** An onboarding ramp step fired: the HUD shows its one-line hint (never pauses play). */
+  | { type: 'hint'; step: RampUnlock }
   /** Integrity removed from a core this tick (one event per damaged core per tick). */
   | { type: 'coreDamaged'; coreId: CoreId; amount: number; cause: 'threat'; threatType: ThreatType }
   | { type: 'coreLost'; coreId: CoreId }
@@ -126,6 +128,8 @@ export interface SimState {
   endless: EndlessRules | null;
   /** Endless mode: seconds to the next spawn. */
   spawnTimer: number;
+  /** Endless mode: ramp steps already fired (each fires once). */
+  rampDone: RampUnlock[];
   nextId: number;
   /** Seeded random state (mulberry32), kept in the state so a run is fully reproducible. */
   rngState: number;

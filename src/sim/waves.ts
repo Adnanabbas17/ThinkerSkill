@@ -22,8 +22,19 @@ export function spawnInterval(rules: EndlessRules, elapsed: number): number {
   return rules.startInterval + (rules.endInterval - rules.startInterval) * k;
 }
 
+/** Fire each onboarding step once, when its time has come. Steps with no time yet never fire. */
+function stepRamp(s: SimState, rules: EndlessRules): void {
+  const elapsed = s.tick * SIM_DT;
+  for (const step of rules.ramp) {
+    if (step.at === null || elapsed + 1e-9 < step.at || s.rampDone.includes(step.unlock)) continue;
+    s.rampDone.push(step.unlock);
+    s.events.push({ type: 'hint', step: step.unlock });
+  }
+}
+
 /** Endless mode: spawn on a timer that speeds up, held back while maxAlive enemies are alive. Never wins. */
 function stepEndless(s: SimState, rules: EndlessRules, t: Tuning, room: Room): void {
+  stepRamp(s, rules);
   s.spawnTimer -= SIM_DT;
   if (s.spawnTimer > 1e-9) return;
   if (s.enemies.length >= rules.maxAlive) {

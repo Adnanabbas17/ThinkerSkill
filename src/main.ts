@@ -1,5 +1,5 @@
 import { chooseRoom, isArena } from './content/arena';
-import { endlessRules } from './content/waves';
+import { endlessRules, rampHint } from './content/waves';
 import type { Room } from './content/testRoom';
 import { testWaves } from './content/testWaves';
 import { createInput } from './input/input';
@@ -44,6 +44,7 @@ async function start(): Promise<void> {
       if (e.code !== 'KeyR' || e.repeat || state.status === 'playing') return;
       tryNumber++;
       state = newRun(room, tryNumber);
+      hud.clearHint();
       acc = 0;
     });
 
@@ -60,6 +61,7 @@ async function start(): Promise<void> {
         }
       }
       view.draw(state, alpha, frameDt, tuning, frameEvents);
+      for (const e of frameEvents) if (e.type === 'hint') hud.showHint(rampHint(e.step), now);
       sfx.play(frameEvents);
       frameEvents.length = 0;
       hud.game(state, tuning, tryNumber);

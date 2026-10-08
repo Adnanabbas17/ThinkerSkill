@@ -1,12 +1,17 @@
 import './hud.css';
 import type { SimState } from '../sim/types';
 import type { Tuning } from '../tuning/tuning';
+import { HINT_SECONDS } from '../content/waves';
 import { FrameStats } from './frameStats';
 
 export interface Hud {
   setBackend(name: string): void;
   /** Show run state: hp, wave, try number, and the end banner. */
   game(state: SimState, tuning: Tuning, tryNumber: number): void;
+  /** Show a one-line hint for HINT_SECONDS (replaces the current one). Never pauses play. */
+  showHint(text: string, nowMs: number): void;
+  /** Hide the hint now (new run). */
+  clearHint(): void;
   /** Call once per rendered frame. */
   frame(nowMs: number, dtMs: number): void;
 }
@@ -43,6 +48,8 @@ export function createHud(doc: Document): Hud {
   const tryEl = doc.getElementById('hud-try')!;
   const bannerEl = doc.getElementById('hud-banner')!;
   const coresEl = doc.getElementById('hud-cores')!;
+  const hintEl = doc.getElementById('hud-hint')!;
+  let hintUntil = 0;
   let coreRows: { row: HTMLElement; fill: HTMLElement; value: HTMLElement }[] = [];
   const stats = new FrameStats();
   let lastText = -1;
@@ -87,7 +94,17 @@ export function createHud(doc: Document): Hud {
         bannerEl.innerHTML = `${what}<small>Press R to retry</small>`;
       }
     },
+    showHint(text, nowMs) {
+      hintEl.textContent = text;
+      hintEl.hidden = text === '';
+      hintUntil = nowMs + HINT_SECONDS * 1000;
+    },
+    clearHint() {
+      hintEl.hidden = true;
+      hintUntil = 0;
+    },
     frame(nowMs, dtMs) {
+      if (!hintEl.hidden && nowMs >= hintUntil) hintEl.hidden = true;
       if (dtMs > 0) stats.push(nowMs, dtMs);
       if (nowMs - lastText >= 250) {
         lastText = nowMs;
