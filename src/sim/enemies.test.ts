@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cloneDefaults } from '../tuning/tuning';
-import { ENEMY_RADIUS, spawnEnemy } from './enemies';
+import { testRoom } from '../content/testRoom';
+import { ENEMY_RADIUS, faceEndClosed, spawnEnemy } from './enemies';
 import { SIM_DT } from './fixedStep';
 import { createSim, stepSim } from './sim';
 import { distToBox, emptyRoom, idle } from './testUtils';
@@ -84,6 +85,43 @@ describe('enemies', () => {
       around = s.enemies[0].pos.x < box.x - box.hw;
     }
     expect(around).toBe(true);
+  });
+
+  it('slide away from a face end that meets an outer wall, even when it is the nearer end', () => {
+    // A box against the bottom wall: its left face (x = -2) runs from y = 6 down into the wall.
+    // The enemy is pinned below the face centre, so the nearer end is the dead-end corner.
+    const box = { x: 0, y: 8, hw: 2, hh: 2 };
+    const r = emptyRoom({ obstacles: [box] });
+    const s = createSim(r, 1);
+    const tuning = { ...t, enemySpawnTime: 0, contactDamage: 0 };
+    s.player.pos = { x: 6, y: 8.5 };
+    spawnEnemy(s, { x: -2 - ENEMY_RADIUS, y: 8.5 }, tuning);
+    stepSim(s, idle(), tuning, r);
+    const e = s.enemies[0];
+    expect(e.detourTime).toBeGreaterThan(0);
+    expect(e.detourDir.y).toBe(-1); // up, towards the open end, not down into the corner
+  });
+
+  it('get around a box that meets an outer wall, within 6 s', () => {
+    const box = { x: 0, y: 8, hw: 2, hh: 2 };
+    const r = emptyRoom({ obstacles: [box] });
+    const s = createSim(r, 1);
+    const tuning = { ...t, enemySpawnTime: 0, contactDamage: 0 };
+    spawnEnemy(s, { x: -6, y: 9 }, tuning);
+    let passed = false;
+    for (let i = 0; i < 360 && !passed; i++) {
+      s.player.pos = { x: 6, y: 9 };
+      stepSim(s, idle(), tuning, r);
+      passed = s.enemies[0].pos.x > box.x + box.hw;
+    }
+    expect(passed).toBe(true);
+  });
+
+  it('test room: no box face has a closed end, so detours there are unchanged by the rule', () => {
+    const normals = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+    for (const b of testRoom.obstacles)
+      for (const n of normals)
+        for (const sign of [1, -1]) expect(faceEndClosed(b, n, sign, testRoom), `${b.x},${b.y}`).toBe(false);
   });
 
   it('stay out of walls and obstacles', () => {

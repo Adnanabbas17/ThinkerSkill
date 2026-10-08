@@ -1,4 +1,4 @@
-import type { Room } from '../content/testRoom';
+import type { Box, Room } from '../content/testRoom';
 import type { Tuning } from '../tuning/tuning';
 import { moveCircle, slide } from './collision';
 import { SIM_DT } from './fixedStep';
@@ -88,25 +88,52 @@ export function stepEnemies(s: SimState, t: Tuning, room: Room): void {
 /**
  * Direction to slide along the face an enemy is pinned against (`n` is the face normal): towards
  * the nearer end of that face, so enemies either side of its centre split up instead of
- * converging and jamming. Exactly at the centre, the enemy id breaks the tie.
+ * converging and jamming. Exactly at the centre, the enemy id breaks the tie. If that end is
+ * closed (it meets an outer wall or another box), slide towards the other end instead, so an
+ * enemy never slides into a dead-end corner.
  */
 function detourDirection(pos: Vec2, n: Vec2, id: number, room: Room): Vec2 {
   const tangent = { x: -n.y, y: n.x };
-  const centre = touchedBoxCentre(pos, n, room);
+  const box = touchedBox(pos, n, room);
+  const centre = box ?? { x: (room.minX + room.maxX) / 2, y: (room.minY + room.maxY) / 2 };
   const along = (pos.x - centre.x) * tangent.x + (pos.y - centre.y) * tangent.y;
-  const sign = Math.abs(along) > 0.05 ? Math.sign(along) : id % 2 === 0 ? 1 : -1;
+  let sign = Math.abs(along) > 0.05 ? Math.sign(along) : id % 2 === 0 ? 1 : -1;
+  if (box && faceEndClosed(box, n, sign, room) && !faceEndClosed(box, n, -sign, room)) sign = -sign;
   return { x: tangent.x * sign, y: tangent.y * sign };
 }
 
-/** Centre of the box whose face (normal `n`) the enemy touches; the room centre for an outer wall. */
-function touchedBoxCentre(pos: Vec2, n: Vec2, room: Room): Vec2 {
+/** The box whose face (normal `n`) the enemy touches; null for an outer wall. */
+function touchedBox(pos: Vec2, n: Vec2, room: Room): Box | null {
   for (const b of room.obstacles) {
     const dx = pos.x - Math.min(Math.max(pos.x, b.x - b.hw), b.x + b.hw);
     const dy = pos.y - Math.min(Math.max(pos.y, b.y - b.hh), b.y + b.hh);
     const d = Math.hypot(dx, dy);
-    if (d > 1e-9 && d <= ENEMY_RADIUS + 0.01 && (dx * n.x + dy * n.y) / d > 0.7) return { x: b.x, y: b.y };
+    if (d > 1e-9 && d <= ENEMY_RADIUS + 0.01 && (dx * n.x + dy * n.y) / d > 0.7) return b;
   }
-  return { x: (room.minX + room.maxX) / 2, y: (room.minY + room.maxY) / 2 };
+  return null;
+}
+
+/**
+ * Is the end of a box face closed? The face has outward normal `n` (an axis); `sign` picks the end
+ * along the tangent (-n.y, n.x). Closed when an enemy standing just past that end, still on the
+ * face's side, would overlap an outer wall or another box.
+ */
+export function faceEndClosed(box: Box, n: Vec2, sign: number, room: Room): boolean {
+  const tangent = { x: -n.y, y: n.x };
+  const halfAlong = Math.abs(tangent.x) * box.hw + Math.abs(tangent.y) * box.hh;
+  const halfOut = Math.abs(n.x) * box.hw + Math.abs(n.y) * box.hh;
+  const along = halfAlong + ENEMY_RADIUS + 0.1;
+  const out = halfOut + ENEMY_RADIUS + 0.1;
+  const x = box.x + tangent.x * sign * along + n.x * out;
+  const y = box.y + tangent.y * sign * along + n.y * out;
+  const r = ENEMY_RADIUS;
+  if (x - r < room.minX || x + r > room.maxX || y - r < room.minY || y + r > room.maxY) return true;
+  return room.obstacles.some((o) => {
+    if (o === box) return false;
+    const dx = Math.max(Math.abs(x - o.x) - o.hw, 0);
+    const dy = Math.max(Math.abs(y - o.y) - o.hh, 0);
+    return dx * dx + dy * dy < r * r;
+  });
 }
 
 /** Push overlapping enemies apart (half each), then back out of walls. */
