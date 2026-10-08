@@ -1,6 +1,6 @@
 # Milestone 2 plan: the thinking loop
 
-Status: **draft for owner approval.** Nothing in this plan is built yet.
+Status: **reviewed by the owner; revision 2.** Slice 0 approved to start. Nothing else is built yet.
 
 Goal (from CLAUDE.md): full v1 scope in grey boxes, win and lose, debrief. Accepted when Bot A loses at least
 9 of 10 seeds, Bot B wins at least 8 of 10, and 3 of 5 first-time players finish a run without help and start
@@ -22,19 +22,19 @@ Ground rules for every slice:
 | Area | Today | Needed for Milestone 2 | Slice |
 |---|---|---|---|
 | Enemy detour (`src/sim/enemies.ts`) | Pinned enemy slides toward the player's side; pairs converge on a box face and jam (README TODO) | Slide toward the nearer end of the face | 0 |
-| Room type (`src/content/testRoom.ts`) | `Room` = bounds, static boxes, player start, spawn points | New `Arena` type with cores, doors, breakers, vents, terminals, source sites. `Room` stays for existing unit tests | 1 |
+| Room type (`src/content/testRoom.ts`) | `Room` = bounds, static boxes, player start, spawn points | New `Arena` type with cores, doors, breakers, vents, terminals, source sites. `Room` stays for existing unit tests | 1a |
 | Collision and shots (`collision.ts`, `projectiles.ts`) | Read only `room.obstacles` (static) | Also read closed doors from sim state (dynamic blockers) | 5 |
-| Enemy targeting (`enemies.ts`) | Every enemy chases the player | Threats target cores (some chase the player), per-type behaviour | 1, 3 |
-| Enemy state (`types.ts`) | No type, no target | `type`, `disguised`, `revealed`, `targetCoreId` | 1, 3, 4 |
+| Enemy targeting (`enemies.ts`) | Every enemy chases the player | Threats target cores (some chase the player), per-type behaviour | 1a, 3 |
+| Enemy state (`types.ts`) | No type, no target | `type`, `disguised`, `revealed`, `targetCoreId` | 1a, 3, 4 |
 | Weapon (`projectiles.ts`) | One gun, `shotDamage` hurts everything | 3 tool modes, energy, damage only with the correct counter | 3 |
 | Input (`keys.ts`, `input.ts`, `TickInput`) | move, aim, dash, fire | Add `tool: 1 \| 2 \| 3` (keys 1/2/3) and `scan` (hold E). Also used to interact with breakers and vents | 3, 4 |
-| Waves (`waves.ts`, `testWaves.ts`) | 3 fixed waves; clearing them = **win** | Endless, escalating waves until the source is shut down; win comes from the source, not from waves | 1, 5 |
-| Win and lose (`sim.ts`, `enemies.ts`) | Lose when hero HP = 0 | Also lose when all 3 cores are lost; win when the source is shut down with at least 1 core online | 1, 5 |
-| Events (`SimEvent`) | Cleared every tick; no ids, no time, no truth flags | Persistent run log in `SimState` (`log: LoggedEvent[]` with tick), events carry ids and truth flags | 1 onward |
-| HUD (`src/ui/hud.ts`) | HP, wave, try, banners | Core bars, energy, current tool, alarm feed, scan progress, debrief screen | 1 to 7 |
+| Waves (`waves.ts`, `testWaves.ts`) | 3 fixed waves; clearing them = **win** | Endless, escalating waves with an onboarding ramp until the source is shut down; win comes from the source, not from waves | 1b, 5 |
+| Win and lose (`sim.ts`, `enemies.ts`) | Lose when hero HP = 0 | Also lose when all 3 cores are lost; win when the source is shut down with at least 1 core online | 1a, 5 |
+| Events (`SimEvent`) | Cleared every tick; no ids, no time, no truth flags | Persistent run log in `SimState` (`log: LoggedEvent[]` with tick), events carry ids and truth flags | 1b onward |
+| HUD (`src/ui/hud.ts`) | HP, wave, try, banners | Core bars (reported integrity), energy, current tool, alarm feed, ramp hints, E prompt, scan progress, debrief screen | 1a to 7 |
 | Game flow (`main.ts`) | R restarts after win or lose | End of run shows the debrief; R from the debrief starts a new run | 7 |
-| Render (`scene.ts`) | Draws test room boxes, hero, robots, shots | Grey-box meshes for the new objects; robot tint per revealed type; disguised robots look like the base type | 1 to 6 |
-| Tests that depend on the old flow | `waves.test.ts` expects "clear last wave = won" | Keep for the M1 test room (waves stay a valid sandbox mode) or retire when the test room is retired. Decision in Q8 | 5 |
+| Render (`scene.ts`) | Draws test room boxes, hero, robots, shots | Grey-box meshes for the new objects; robot tint per revealed type; disguised robots look like the base type | 1a to 6 |
+| Tests that depend on the old flow | `waves.test.ts` expects "clear last wave = won" | Keep for the M1 test room (waves stay a valid sandbox mode) or retire when the test room is retired. Decision in Q8 | 1b |
 
 Nothing here needs a new dependency or an asset file.
 
@@ -42,7 +42,7 @@ Nothing here needs a new dependency or an asset file.
 
 ## 1. Slices (vertical, each playable and testable on its own)
 
-Order principle: **build the pressure first, then the thinking that relieves it.** Cores and triage come first
+Order principle: **build the pressure first, then the thinking that relieves it.** Cores and triage come first (slice 1 is split into 1a and 1b so each half stays small)
 because every other skill is measured against them. Threat types and tools come before disguise, because a
 disguise only makes sense once types differ. The source comes before clues, because clues point at it. The
 debrief comes after all events exist. Bots are enforced last, but their harness starts as soon as a full run
@@ -60,19 +60,30 @@ is possible.
 - **Browser check:** stand straight behind a green block with robots coming from the other side; they split
   around it instead of piling up.
 
-### Slice 1: arena, 3 cores, core-targeting threats, lose on all cores lost
-- **Files:** `src/content/arena.ts` (new: `Arena` type and the v1 arena), `src/content/waves.ts` (new: endless
-  wave schedule, see section 2), `src/sim/types.ts`, `src/sim/sim.ts`, `src/sim/cores.ts` (new),
-  `src/sim/enemies.ts` (targeting), `src/sim/waves.ts` (endless schedule), `src/sim/log.ts` (new: run log),
-  `src/tuning/tuning.ts` (core HP, core damage), `src/render/scene.ts` (core boxes), `src/ui/hud.ts` (3 core bars), `src/main.ts` (use the arena).
+### Slice 1a: arena, 3 cores, lose condition
+- **Files:** `src/content/arena.ts` (new: `Arena` type and the v1 arena), `src/sim/types.ts`, `src/sim/sim.ts`,
+  `src/sim/cores.ts` (new), `src/sim/enemies.ts` (core targeting), `src/tuning/tuning.ts` (core HP, core damage),
+  `src/render/scene.ts` (core boxes), `src/ui/hud.ts` (3 core bars), `src/main.ts` (use the arena).
 - **Sim rules added:** cores have integrity 0 to 100; a threat touching a core damages it per second; a core at 0 is
   lost; threats pick a core target at spawn (weights in content); some threats chase the player; lose when all 3
-  cores are lost; the run log records every event with its tick.
+  cores are lost. Waves stay the current finite list for now (temporary; clearing them still ends the run).
 - **Unit tests:** core damage over time; core lost at 0 and stops taking damage; lose when all 3 lost and not before;
-  targeting is seeded and repeatable; run log keeps events across ticks in order; arena reachability (every spawn
-  vent reaches every core and the player start) like `testRoom.test.ts`.
+  targeting is seeded and repeatable; arena reachability (every spawn vent reaches every core and the player
+  start) like `testRoom.test.ts`.
 - **Browser check:** three grey core pillars with bars in the HUD; robots walk to cores and bars drop; let all
   three fall and the run ends with "All cores lost".
+
+### Slice 1b: endless waves, run log
+- **Files:** `src/content/waves.ts` (new: endless schedule and onboarding ramp, section 2), `src/sim/waves.ts`,
+  `src/sim/log.ts` (new: run log), `src/sim/types.ts`, `src/sim/sim.ts`, `src/ui/hud.ts` (ramp hint line),
+  `src/sim/waves.test.ts` (the "clear the last wave = won" test moves to the M1 test-room fixture, see Q8).
+- **Sim rules added:** waves never end and escalate; clearing waves no longer ends the run (until slice 5 the run
+  only ends by losing); the onboarding ramp unlocks content at fixed times and emits a `hint` event; the run log
+  records every event with its tick.
+- **Unit tests:** waves keep spawning past the last scheduled entry and escalate; the ramp unlocks each item at
+  its time and emits its hint once; run log keeps events across ticks in order and survives the end of a run.
+- **Browser check:** play several minutes: waves keep coming and get denser; the one-line hint appears at the
+  first ramp step without pausing play.
 
 ### Slice 2: damage spread and real alarms (triage)
 - **Files:** `src/sim/cores.ts`, `src/content/arena.ts` (core links), `src/tuning/tuning.ts` (spread rate,
@@ -101,16 +112,22 @@ is possible.
 - **Files:** `src/sim/scan.ts` (new), `src/sim/enemies.ts`, `src/sim/cores.ts`, `src/content/waves.ts`
   (disguise share, false alarm cadence), `src/input/*` (hold E), `src/tuning/tuning.ts` (scan time, range,
   slow-down), `src/render/scene.ts` (disguised robots look like the base type until revealed), `src/ui/hud.ts`
-  (scan progress ring, "FALSE ALARM" stamp after a core is checked).
+  (scan progress ring, core bars show **reported** integrity, "FALSE ALARM" stamp after a core is checked).
 - **Sim rules added:** holding E aimed at a threat within range for `scanTime` reveals its true type
   permanently; while scanning the hero moves slower and cannot fire; disguised threats show the base type until
-  revealed; false alarms are emitted on a seeded cadence for cores that are not being damaged. Scanning a core
-  (or standing next to it) confirms an alarm as false.
+  revealed. Each core now has **real** integrity (the sim value, used for all rules) and **reported** integrity
+  (what the HUD and the bots see). Normally they are equal. False alarms are emitted on a seeded cadence for a
+  core that is not being damaged; during a false alarm that core's reported integrity shows a spoofed drop
+  while its real integrity does not change. A scan of that core, or a visit (hero within a few metres), resyncs
+  reported to real and stamps the alarm as false. Real damage always updates both values.
 - **Unit tests:** scan completes only after holding for `scanTime` on one target, resets if the aim leaves it;
   scan reveals and logs `threatScanned`; disguised threat still resists wrong tools even before it is revealed;
-  false alarm never coincides with real damage on that core; false alarm cadence is seeded and repeatable.
+  a false alarm never changes real integrity; during a false alarm reported is below real and real is unchanged;
+  a scan or a visit resyncs reported to real and logs `alarmChecked`; real damage during a false alarm lowers both;
+  false alarm never starts on a core that is taking real damage; cadence is seeded and repeatable.
 - **Browser check:** hold E on a robot and watch the ring fill and its tint change; a "Core C under attack" alarm
-  with a calm bar and no robots near C, then scanning C stamps "FALSE ALARM". **Stop for playtest** (controls changed).
+  whose bar drops while no robots are near C; walk to C or scan it and the bar jumps back and stamps
+  "FALSE ALARM". **Stop for playtest** (controls changed).
 
 ### Slice 5: hidden source, breakers, doors, vent shutdown, win (problem solving core)
 - **Files:** `src/content/arena.ts` (source sites, doors, breakers, vents), `src/sim/environment.ts` (new),
@@ -136,10 +153,13 @@ is possible.
   `src/ui/hud.ts` (clue log panel, non-pausing), `src/render/scene.ts` (terminal boxes), `src/sim/bots/botB.ts` (report-only).
 - **Sim rules added:** each run generates 6 clues from the seeded source site: 4 true, 2 false. True clues
   corroborate each other (each true fact appears in 2 clues). False clues are planted by the source and
-  each contradicts at least one true clue. Reading a terminal takes a short hold and logs `clueRead` with its truth flag.
+  each contradicts at least one true clue. No false fact is ever stated twice, so "a fact stated by 2 different
+  terminals is true" always holds. Reading a terminal takes a short hold and logs `clueRead` (the log keeps the
+  truth flag for the debrief; bots and the HUD never see it).
 - **Unit tests:** generator always yields exactly 4 true and 2 false; the true clues alone identify the source room
   and its breaker uniquely; every false clue contradicts a true one; same seed gives the same clue set.
-- **Bot harness:** Bot B becomes runnable (report-only).
+- **Unit tests (also):** the corroboration rule picks the right room and breaker for every seed in a sample of 100.
+- **Bot harness:** Bot B and Bot C become runnable (report-only). Report Bot C's win rate next to Bot B's.
 - **Browser check:** read terminals; the clue panel lists them; two agreeing clues point at a room and its
   breaker; a lone clue that contradicts them is the false one.
 
@@ -148,8 +168,10 @@ is possible.
   `src/ui/debrief.ts` + `src/ui/debrief.css` (new: plain HTML overlay), `src/main.ts` (end of run shows it; R from
   there restarts).
 - **Sim rules added:** none in play; scoring functions only (section 3).
-- **Unit tests:** each score from hand-built logs (perfect play = 100, worst play = 0, empty components are
-  skipped, not counted as zero); "what was missed" lists each item type; timeline is sorted and capped.
+- **Unit tests:** each score from hand-built logs (perfect play = 100, worst play = 0); a component one below its
+  minimum sample makes its skill show "not enough data", exactly at the minimum it scores; a skill with not enough
+  data is left out of the rating; the rating itself shows "not enough data" when all three skills do; "what was
+  missed" lists each item type; timeline is sorted and capped.
 - **Browser check:** finish or lose a run; the debrief shows the timeline, missed items, three skill scores and
   the Thinker Skill rating; R starts a new run.
 
@@ -158,7 +180,10 @@ is possible.
   `src/tuning/tuning.ts` (values only, each change proposed to the owner first).
 - **Rules:** none new.
 - **Tests:** Bot A loses at least 9 of 10 seeds; Bot B wins at least 8 of 10; median Bot B run between 6 and 10
-  minutes (target 8).
+  minutes (target 8). Bot C stays report-only and is never enforced.
+- **Bot C check:** if Bot C wins within 2 of Bot B (clues barely matter), propose a higher wrong-breaker cost.
+- **Alignment:** set the problem-solving par time and the 8-minute run target together here, from Bot B's
+  median times, so a good run can reach full par score inside the target length.
 - **Browser check:** full runs; then the 5-player acceptance test.
 
 ---
@@ -199,7 +224,7 @@ interface TerminalDef { id: string; pos: Vec2 }
 |---|---|---|---|
 | Crawler | Current robot, brown | Walks to its target core and claws it | 1 Pulse |
 | Overheater | Robot with red-orange dome tint, glows on the core | Heats a core: its damage also adds to spread | 2 Coolant |
-| Relay | Robot with blue dome tint, antenna blinks | Fast, shielded; also flips the nearest open door shut | 3 EMP |
+| Relay | Robot with blue dome tint, antenna blinks | Fast and shielded | 3 EMP |
 ```ts
 interface ThreatDef { type: 'crawler' | 'overheater' | 'relay'; counter: ToolId; hp: number; speed: number;
   coreDamagePerSec: number; chasesPlayerShare: number; canDisguise: boolean }
@@ -229,6 +254,23 @@ interface WaveRules { baseInterval: number; escalationPerMinute: number;
 ```
 - Waves are endless and escalate until the source is shut down. The source, not a wave count, ends them.
 
+### Onboarding ramp (`waves.ts`)
+Each mechanic first appears at a fixed time, with one non-pausing HUD line shown for about 6 s.
+```ts
+interface RampStep { at: number; unlock: 'crawler' | 'overheater' | 'relay' | 'sourceHunt' | 'disguise' | 'falseAlarms'; hint: string }
+```
+| Time | Unlock | Hint |
+|---|---|---|
+| 0:00 | Crawlers | "Crawlers are attacking the cores. Pulse (1) stops them." |
+| 0:40 | Overheaters | "Overheaters resist Pulse. Only Coolant (2) works." |
+| 1:20 | Relays | "Relays resist Pulse and Coolant. Only EMP (3) works." |
+| 2:00 | Source hunt | "The waves won't stop until you shut down the source. Read terminals (E) to find it." |
+| 2:45 | Disguise | "Some threats hide their type. Hold E on one to scan it." |
+| 3:30 | False alarms | "Alarms can be spoofed. Visit or scan a core to check it." |
+
+Before its step, an item never spawns or fires (terminals, breakers and vents are inert before the source hunt).
+Times are first proposals; slice 8 tunes them with the run-length target.
+
 ### Clues (`clues.ts`)
 ```ts
 type Fact = { kind: 'sourceIn'; room: RoomId } | { kind: 'sourceNotIn'; room: RoomId }
@@ -237,6 +279,16 @@ interface ClueTemplate { fact: Fact['kind']; text: string }   // e.g. "Interfere
 interface Clue { id: string; terminal: string; fact: Fact; isTrue: boolean; text: string }
 ```
 - Per run: 4 true clues (2 facts, each said twice in different words) and 2 false clues (each contradicts a true fact).
+
+### E key priority
+E means one thing at a time, chosen when the hold starts and locked until release:
+1. **Interact** if an interactable is within reach (1.5 m): vent valve, then breaker, then terminal; nearest wins.
+   Interactables are deliberate, close-range actions, so they come first.
+2. Otherwise **scan the threat under the aim**: the threat nearest to the aim line within scan range and a small
+   angle; ties go to the closer one.
+3. Otherwise **scan the core under the aim** (within range).
+4. Otherwise nothing.
+The HUD shows what E will do ("E: scan", "E: flip breaker 2") before the hold starts.
 
 ### Hidden source and environment
 - Source: one of the 4 rooms, chosen from the run seed. While active it keeps the waves coming.
@@ -259,10 +311,11 @@ interface Clue { id: string; terminal: string; fact: Fact; isTrue: boolean; text
 | `resisted` | threatId, tool, energySpent | critical thinking, missed list |
 | `threatKilled` | id, type, tool | timeline |
 | `alarm` | id, coreId, isFalse | crisis, critical thinking |
-| `alarmChecked` | alarmId, by: 'scan' \| 'visit' | critical thinking |
+| `alarmChecked` | alarmId, by: 'scan' \| 'visit', wasFalse | critical thinking |
 | `coreDamaged` | coreId, amount, cause: 'threat' \| 'spread' \| 'cooling' | crisis |
 | `coreLost` | coreId | crisis, missed list |
-| `clueRead` | clueId, isTrue | problem solving |
+| `clueRead` | clueId, isTrue (debrief only) | problem solving |
+| `hint` | rampStep | timeline (first appearances) |
 | `breakerFlipped` | breakerId, on, correct | problem solving |
 | `doorOpened` / `doorClosed` | doorId | timeline |
 | `ventPurged` / `sourceShutdown` | roomId | problem solving |
@@ -272,15 +325,32 @@ interface Clue { id: string; terminal: string; fact: Fact; isTrue: boolean; text
 "Followed a false alarm" is derived: after a false `alarm`, the hero moved at least 6 m toward that core within 10 s
 without first checking it. "Responded to a real alarm" is derived: the hero came within 5 m of that core within 15 s.
 
-### Scores (each 0 to 100; a component with no data is skipped and the weights renormalised)
+### Minimum sample sizes
+A score built on too few events is noise, so each component has a minimum. If **any** component of a skill is below
+its minimum, that skill shows **"not enough data"** and is left out of the rating. If all three skills lack data,
+the rating shows "not enough data" too.
+
+| Skill | Component | Minimum |
+|---|---|---|
+| Critical thinking | Tool uses (hits + resisted) | 10 |
+| Critical thinking | Disguised threats engaged | 2 |
+| Critical thinking | False alarms raised | 2 |
+| Crisis management | Run time for average integrity | 60 s |
+| Crisis management | Real alarms raised | 3 |
+| Crisis management | Cores alive at the end | always available (3 cores) |
+| Problem solving | Time since the source hunt started | 60 s |
+| Problem solving | Shutdown, par time, wrong breakers | always available once the hunt has run 60 s |
+
+### Scores (each 0 to 100)
 - **Critical thinking** = 100 x (0.4 x correct-counter share of tool uses + 0.3 x share of disguised threats scanned
   before the first hit on them + 0.3 x share of false alarms not followed).
 - **Crisis management** = 100 x (0.5 x average core integrity over the run + 0.3 x share of real alarms responded to
   within 15 s + 0.2 x share of cores alive at the end).
-- **Problem solving** = 50 if the source was shut down, plus 25 x min(1, par time / shutdown time) with par = 4 min,
+- **Problem solving** = 50 if the source was shut down, plus 25 x min(1, par time / shutdown time), where shutdown
+  time is measured from the start of the source hunt and par is a first guess of 5 min (aligned in slice 8),
   plus 25 x (1 - wrong breaker flips / 3, floored at 0). False clues acted on (a wrong breaker flipped right after
   reading a false clue) are listed in "what was missed".
-- **Thinker Skill rating** = mean of the three, shown as a number and a band (90+ Sharp, 70+ Solid, 50+ Shaky, below 50 Overwhelmed).
+- **Thinker Skill rating** = mean of the skills that have enough data, shown as a number and a band (90+ Sharp, 70+ Solid, 50+ Shaky, below 50 Overwhelmed).
 - **Decision timeline:** scans, tool switches that changed the outcome, alarms and responses, clue reads, breaker
   flips, door opens, core losses, shutdown. Capped at about 25 entries, most important first.
 - **What was missed:** disguised threats hit before scanning, wrong-tool energy spent, false alarms followed, real
@@ -290,24 +360,30 @@ All scoring is a pure function `debrief(log)` in `src/sim/debrief.ts`, so bots a
 
 ---
 
-## 4. Bot A and Bot B
+## 4. Bot A, Bot B and Bot C
 
 Both bots are pure functions `(view, memory, rng) -> TickInput` in `src/sim/bots/`, used only by tests. A small
 grid path planner (A* on a 0.5 m grid over the arena walls and closed doors) is shared. Each test runs 10 seeds.
 
-| | Bot A | Bot B |
-|---|---|---|
-| Observation | Live state, no delay | State delayed 18 ticks (300 ms) through a ring buffer |
-| Aim | Exact | Angle noise of a few degrees per shot (seeded) |
-| Target | Nearest threat | Threats on the most damaged core first, then the nearest |
-| Tool | Uniform random per engagement | The counter for the revealed type |
-| Scanning | Never | Scans any threat it has not revealed before engaging; checks alarms by visiting or scanning the core |
-| Cores | Ignores them | Moves to defend the most damaged core when it is under attack |
-| Clues | Ignores them | Reads terminals; acts only on true clues (uses the `isTrue` flag as an oracle for "reasons correctly") |
-| Source | Walks to random rooms, flips random breakers, purges any valve it reaches | Flips the breaker the true clues name, enters that room, purges the valve |
-| Must | Lose at least 9 of 10 | Win at least 8 of 10 |
-| First runnable | Slice 5 (report-only) | Slice 6 (report-only) |
-| Enforced | Slice 8 | Slice 8 |
+Bots see only what a player sees: reported core integrity (not real), revealed threat types, clue texts. None of
+them reads `isTrue` or any other hidden truth.
+
+| | Bot A | Bot B | Bot C (report-only) |
+|---|---|---|---|
+| Observation | Live state, no delay | State delayed 18 ticks (300 ms) through a ring buffer | Same as Bot B |
+| Aim | Exact | Angle noise of a few degrees per shot (seeded) | Same as Bot B |
+| Target | Nearest threat | Threats on the most damaged core (by reported integrity) first, then the nearest | Same as Bot B |
+| Tool | Uniform random per engagement | The counter for the revealed type | Same as Bot B |
+| Scanning | Never | Scans any threat it has not revealed before engaging; checks alarms by visiting or scanning the core | Same as Bot B |
+| Cores | Ignores them | Moves to defend the most damaged core when it is under attack | Same as Bot B |
+| Clues | Ignores them | Reads terminals; trusts a fact only once 2 different terminals state it (corroboration rule) | Ignores them |
+| Source | Walks to random rooms, flips random breakers, purges any valve it reaches | Flips the breaker the corroborated facts name, enters that room, purges the valve | Tries breakers in random order until a door to the source room opens |
+| Goal | Lose at least 9 of 10 | Win at least 8 of 10 | Never enforced; compared with Bot B |
+| First runnable | Slice 5 (report-only) | Slice 6 (report-only) | Slice 6 (report-only) |
+| Enforced | Slice 8 | Slice 8 | Never |
+
+Bot C exists to show that clues matter. From slice 6, its win rate is reported next to Bot B's. If Bot C wins
+within 2 of Bot B, slice 8 proposes a higher wrong-breaker cost.
 
 Why Bot A should lose: two thirds of its tool picks are wrong and burn energy, disguised threats waste even its
 right picks, random breakers drain cores, and nothing defends the cores.
@@ -330,17 +406,18 @@ win per bot.
 |---|---|---|
 | Q1 | Milestone 1 acceptance (5 first-time players) has not been reported. CLAUDE.md says one milestone at a time. | Run the M1 playtest before slice 1, or explicitly waive it. Slice 0 can start now. |
 | Q2 | Arena size | 40 x 28 m. Big enough for 4 rooms, 3 cores and 6 terminals with 2.5 m lanes; the camera already follows. |
-| Q3 | How can a human tell a false alarm? | Core bars are always truthful; a false alarm has no damage behind it. Checking costs a glance or a short scan. Simple, fair and teachable. |
+| Q3 | How can a human tell a false alarm? | **Decided:** the alarmed core's HUD bar shows a spoofed drop (reported integrity) while real integrity is unchanged. Only a scan of the core or a visit reveals the true value. Real damage always shows. |
 | Q4 | How can a human tell a false clue? | Corroboration: true facts appear twice, false ones once and contradict a true one. Scanning stays for threats only. |
 | Q5 | Wrong tool effect | 0 damage, energy spent, "RESISTED" shown. Clear feedback beats partial damage. |
 | Q6 | Does Pulse cost energy? | Yes, a small amount. Otherwise Pulse becomes free spam and the energy rule only bites on 2 and 3. |
 | Q7 | Wrong breaker cost | Cooling loss on that breaker's core until flipped back. Visible, recoverable and tied to triage. |
 | Q8 | Keep the M1 test room? | Keep it as a unit-test fixture and as `?room=test` for feel tuning; the game starts in the arena. |
-| Q9 | Bot B using the clue truth flag | Accept it as an oracle for "reasons correctly". Bot B still has to walk, read and act like a player. |
-| Q10 | Run length target of 8 min | Escalation plus par time; no hard timer. Check the median Bot B run in slice 8. |
+| Q9 | How does Bot B know which clues are true? | **Decided:** it never reads `isTrue`. It uses the corroboration rule (trust a fact stated by 2 different terminals), the same reasoning a player can use. |
+| Q10 | Run length target of 8 min | Escalation plus par time; no hard timer. Par time and the run-length target are aligned together in slice 8 from Bot B's median times. |
 | Q11 | Score weights | Use the ones in section 3 now; retune after playtests. |
 | Q12 | Visual exceptions already approved (hero model, robots, tracers, palette) vs "grey boxes" | Keep what exists; all new objects are grey boxes. |
-| R1 | Biggest milestone so far: 9 slices with many new rules | Strict slice order; each slice stays playable; stop for playtest after slices 3 and 4. |
+| Q13 | Spoofed bars could feel unfair if they look exactly like real damage | Keep one honest cue: a real attack also triggers the core's grey-box flicker in the world; a spoof only changes the HUD bar. Confirm in the slice 4 playtest. |
+| R1 | Biggest milestone so far: 10 slices (0, 1a, 1b, 2 to 8) with many new rules | Strict slice order; each slice stays playable; stop for playtest after slices 3 and 4. |
 | R2 | Balance churn between slices | Bots report from slice 5 so problems show early; tuning changes always proposed first. |
 | R3 | Players miss the point of scanning | Disguise share starts at 0 and grows; first disguised threat appears only after the player has seen all 3 types. |
 | R4 | Run log growth over 8 min | Roughly a few thousand entries; fine for memory and the determinism test. |
