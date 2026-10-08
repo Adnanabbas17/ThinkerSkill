@@ -46,6 +46,46 @@ describe('enemies', () => {
     expect(reached).toBe(true);
   });
 
+  it('pinned either side of a face centre slide apart, never towards each other', () => {
+    // Box face at x = 6 spans y -1.5..1.5; the player is straight behind it at the origin.
+    const box = { x: 5, y: 0, hw: 1, hh: 1.5 };
+    const r = emptyRoom({ obstacles: [box] });
+    const s = createSim(r, 1);
+    const tuning = { ...t, enemySpawnTime: 0, contactDamage: 0 };
+    spawnEnemy(s, { x: 6 + ENEMY_RADIUS, y: 0.5 }, tuning);
+    spawnEnemy(s, { x: 6 + ENEMY_RADIUS, y: -0.5 }, tuning);
+    const [upper, lower] = s.enemies;
+    // First tick: both chase the player, hit the face and get pinned.
+    stepSim(s, idle(), tuning, r);
+    expect(upper.detourTime).toBeGreaterThan(0);
+    expect(lower.detourTime).toBeGreaterThan(0);
+    expect(upper.detourDir.y).toBe(1); // towards the face's nearer end (+y)
+    expect(lower.detourDir.y).toBe(-1); // towards the other end (-y)
+    let gap = upper.pos.y - lower.pos.y;
+    for (let i = 0; i < 30; i++) {
+      stepSim(s, idle(), tuning, r);
+      const now = upper.pos.y - lower.pos.y;
+      expect(now, `tick ${i}`).toBeGreaterThanOrEqual(gap - 1e-9);
+      gap = now;
+    }
+    expect(upper.pos.y).toBeGreaterThan(1);
+    expect(lower.pos.y).toBeLessThan(-1);
+  });
+
+  it('a single enemy pinned at a face centre gets around the box within 3 s', () => {
+    const box = { x: 5, y: 0, hw: 1, hh: 1.5 };
+    const r = emptyRoom({ obstacles: [box] });
+    const s = createSim(r, 1);
+    const tuning = { ...t, enemySpawnTime: 0, contactDamage: 0 };
+    spawnEnemy(s, { x: 6 + ENEMY_RADIUS, y: 0 }, tuning);
+    let around = false;
+    for (let i = 0; i < 180 && !around; i++) {
+      stepSim(s, idle(), tuning, r);
+      around = s.enemies[0].pos.x < box.x - box.hw;
+    }
+    expect(around).toBe(true);
+  });
+
   it('stay out of walls and obstacles', () => {
     const box = { x: 4, y: 0, hw: 1, hh: 1 };
     const r = emptyRoom({ obstacles: [box] });

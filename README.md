@@ -45,4 +45,4 @@ Asset credits: see [ASSETS.md](ASSETS.md).
 
 ## TODO
 
-- Fix enemy detour rule (pairs converge on a box face and jam). Separate approved task with unit test and balance re-check, required before the Milestone 2 room.
+- Done (Milestone 2 slice 0): fix enemy detour rule (pairs converge on a box face and jam).

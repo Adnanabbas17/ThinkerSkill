@@ -52,10 +52,7 @@ export function stepEnemies(s: SimState, t: Tuning, room: Room): void {
     slide(e.vel, hits);
     // Pinned head-on against a box or wall: slide along its face for a moment.
     if (toPlayer && hits.length > 0 && e.detourTime <= 0 && Math.hypot(e.vel.x, e.vel.y) < t.enemySpeed * 0.25) {
-      const n = hits[0];
-      const side = n.x * toPlayer.y - n.y * toPlayer.x;
-      const sign = Math.abs(side) > 0.05 ? Math.sign(side) : e.id % 2 === 0 ? 1 : -1;
-      e.detourDir = { x: -n.y * sign, y: n.x * sign };
+      e.detourDir = detourDirection(e.pos, hits[0], e.id, room);
       e.detourTime = DETOUR_TIME;
     }
   }
@@ -86,6 +83,30 @@ export function stepEnemies(s: SimState, t: Tuning, room: Room): void {
       s.events.push({ type: 'playerDestroyed' });
     }
   }
+}
+
+/**
+ * Direction to slide along the face an enemy is pinned against (`n` is the face normal): towards
+ * the nearer end of that face, so enemies either side of its centre split up instead of
+ * converging and jamming. Exactly at the centre, the enemy id breaks the tie.
+ */
+function detourDirection(pos: Vec2, n: Vec2, id: number, room: Room): Vec2 {
+  const tangent = { x: -n.y, y: n.x };
+  const centre = touchedBoxCentre(pos, n, room);
+  const along = (pos.x - centre.x) * tangent.x + (pos.y - centre.y) * tangent.y;
+  const sign = Math.abs(along) > 0.05 ? Math.sign(along) : id % 2 === 0 ? 1 : -1;
+  return { x: tangent.x * sign, y: tangent.y * sign };
+}
+
+/** Centre of the box whose face (normal `n`) the enemy touches; the room centre for an outer wall. */
+function touchedBoxCentre(pos: Vec2, n: Vec2, room: Room): Vec2 {
+  for (const b of room.obstacles) {
+    const dx = pos.x - Math.min(Math.max(pos.x, b.x - b.hw), b.x + b.hw);
+    const dy = pos.y - Math.min(Math.max(pos.y, b.y - b.hh), b.y + b.hh);
+    const d = Math.hypot(dx, dy);
+    if (d > 1e-9 && d <= ENEMY_RADIUS + 0.01 && (dx * n.x + dy * n.y) / d > 0.7) return { x: b.x, y: b.y };
+  }
+  return { x: (room.minX + room.maxX) / 2, y: (room.minY + room.maxY) / 2 };
 }
 
 /** Push overlapping enemies apart (half each), then back out of walls. */
