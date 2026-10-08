@@ -54,6 +54,37 @@ body {
   color: #ff7a6a;
 }
 
+.hud-cores[hidden] {
+  display: none;
+}
+
+.hud-core {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-core-bar {
+  width: 120px;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.hud-core-fill {
+  height: 100%;
+  background: #7fe0a0;
+}
+
+.hud-core.low .hud-core-fill {
+  background: #ffc46a;
+}
+
+.hud-core.lost {
+  color: #ff7a6a;
+}
+
 .hud-banner {
   position: fixed;
   top: 38%;

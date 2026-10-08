@@ -1,10 +1,11 @@
 import type { Room } from '../content/testRoom';
 import type { Wave } from '../content/testWaves';
 import type { Tuning } from '../tuning/tuning';
+import { createCores, stepCores } from './cores';
 import { stepEnemies } from './enemies';
 import { createPlayer, stepPlayer } from './player';
 import { fire, stepShots } from './projectiles';
-import type { SimState, TickInput } from './types';
+import type { SimState, SimStatus, TickInput } from './types';
 import { copy } from './vec';
 import { stepWaves } from './waves';
 
@@ -13,7 +14,9 @@ export function createSim(room: Room, seed: number, waves: readonly Wave[] = [])
   return {
     tick: 0,
     status: 'playing',
+    lostReason: null,
     player: createPlayer(room),
+    cores: createCores(room),
     enemies: [],
     shots: [],
     waves,
@@ -37,6 +40,9 @@ export function stepSim(state: SimState, input: TickInput, tuning: Tuning, room:
     if (state.status === 'playing') fire(state, input, tuning, room);
     stepShots(state, tuning, room);
     stepEnemies(state, tuning, room);
+    // stepEnemies may have destroyed the hero (TypeScript keeps the narrowing from above, so widen).
+    if ((state.status as SimStatus) === 'lost' && state.lostReason === null) state.lostReason = 'destroyed';
+    stepCores(state, tuning, room);
     stepWaves(state, tuning, room);
   }
   state.tick++;

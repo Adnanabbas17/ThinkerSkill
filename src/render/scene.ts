@@ -90,6 +90,7 @@ export const PALETTE = {
   greyCover: 0xb0b0b0,
   greyConsole: 0x5c5c5c,
   greyCore: 0xd6d6d6,
+  greyCoreLost: 0x3c3c3c,
   vent: 0x6e6e6e,
   floorLabel: '#ececec',
   ambient: 0xfff4e0,
@@ -167,9 +168,13 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
     core: { mat: matte(PALETTE.greyCore), height: CORE_HEIGHT },
   };
   const obstacleMat = matte(PALETTE.obstacle);
+  const coreMeshes: Mesh[] = []; // same order as room.cores and state.cores
+  const coreLostMat = matte(PALETTE.greyCoreLost);
   for (const { kind, box: o } of solidParts(room)) {
     const look = isArena(room) ? arenaLook[kind] : { mat: obstacleMat, height: OBSTACLE_HEIGHT };
-    scene.add(box(o.hw * 2, look.height, o.hh * 2, look.mat, o.x, look.height / 2, o.y));
+    const mesh = box(o.hw * 2, look.height, o.hh * 2, look.mat, o.x, look.height / 2, o.y);
+    scene.add(mesh);
+    if (kind === 'core' && isArena(room)) coreMeshes.push(mesh);
   }
   if (isArena(room)) {
     // Spawn vents: flat grey squares, nothing to collide with.
@@ -322,6 +327,7 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
       return { x: camera.position.x + ray.x * k, y: camera.position.z + ray.z * k };
     },
     draw(state, alpha, frameDt, tuning, events) {
+      for (let i = 0; i < coreMeshes.length; i++) coreMeshes[i].material = state.cores[i]?.lost ? coreLostMat : arenaLook.core.mat;
       const p = state.player;
       const px = lerp(p.prevPos.x, p.pos.x, alpha);
       const pz = lerp(p.prevPos.y, p.pos.y, alpha);

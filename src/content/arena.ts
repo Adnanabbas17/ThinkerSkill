@@ -1,15 +1,10 @@
 // The v1 arena (Milestone 2 plan, "Arena layout", Proposal A). Sim plane units are metres:
 // x to the right, y towards the camera. Positions are centres; Box sizes are half extents.
 
-import { testRoom, type Box, type Room } from './testRoom';
+import { testRoom, type Box, type CoreDef, type Room } from './testRoom';
 
-export type CoreId = 'A' | 'B' | 'C';
+export type { CoreDef, CoreId } from './testRoom';
 export type SourceRoomId = 'N' | 'S' | 'W' | 'E';
-
-export interface CoreDef {
-  id: CoreId;
-  box: Box;
-}
 
 export interface SourceRoomDef {
   id: SourceRoomId;
@@ -21,7 +16,6 @@ export interface SourceRoomDef {
 
 export interface Arena extends Room {
   kind: 'arena';
-  cores: CoreDef[];
   sourceRooms: SourceRoomDef[];
   covers: Box[];
   console: Box;

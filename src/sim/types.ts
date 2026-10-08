@@ -1,3 +1,4 @@
+import type { CoreId } from '../content/testRoom';
 import type { Wave } from '../content/testWaves';
 
 export interface Vec2 {
@@ -59,6 +60,14 @@ export interface ShotState {
   travelled: number;
 }
 
+export interface CoreState {
+  id: CoreId;
+  /** 0 to 100. */
+  integrity: number;
+  /** Reached 0: offline for the rest of the run, takes no more damage. */
+  lost: boolean;
+}
+
 export interface WaveProgress {
   /** Current wave, -1 before the first one starts. */
   index: number;
@@ -70,6 +79,9 @@ export interface WaveProgress {
 
 export type SimStatus = 'playing' | 'won' | 'lost';
 
+/** Why a run was lost (null while playing or after a win). */
+export type LostReason = 'destroyed' | 'coresLost' | null;
+
 export type SimEvent =
   | { type: 'dash' }
   | { type: 'fire' }
@@ -80,12 +92,19 @@ export type SimEvent =
   | { type: 'playerHurt' }
   | { type: 'playerDestroyed' }
   | { type: 'waveStart'; wave: number }
-  | { type: 'roomCleared' };
+  | { type: 'roomCleared' }
+  /** Integrity removed from a core this tick (one event per damaged core per tick). */
+  | { type: 'coreDamaged'; coreId: CoreId; amount: number; cause: 'threat' }
+  | { type: 'coreLost'; coreId: CoreId }
+  | { type: 'allCoresLost' };
 
 export interface SimState {
   tick: number;
   status: SimStatus;
+  lostReason: LostReason;
   player: PlayerState;
+  /** Same order as the room's cores. */
+  cores: CoreState[];
   enemies: EnemyState[];
   shots: ShotState[];
   waves: readonly Wave[];

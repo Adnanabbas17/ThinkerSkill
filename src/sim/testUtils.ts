@@ -33,5 +33,6 @@ export const emptyRoom = (overrides: Partial<Room> = {}): Room => ({
     { x: -12, y: 8 },
     { x: 12, y: 8 },
   ],
+  cores: [],
   ...overrides,
 });

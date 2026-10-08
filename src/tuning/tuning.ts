@@ -35,6 +35,8 @@ export const defaultTuning = {
   enemyAccel: 20,
   enemyKnockback: 4,
   enemySpawnTime: 0.6,
+  // Core
+  coreDamagePerSec: 4,
   // Hurt
   playerHp: 5,
   contactDamage: 1,
@@ -70,6 +72,7 @@ export const tuningSpecs: (TuningSpec & { key: TuningKey })[] = [
   { key: 'enemyAccel', group: 'Enemy', label: 'accel (m/s²)', min: 2, max: 100, step: 1 },
   { key: 'enemyKnockback', group: 'Enemy', label: 'knockback (m/s)', min: 0, max: 20, step: 0.5 },
   { key: 'enemySpawnTime', group: 'Enemy', label: 'spawn warning (s)', min: 0, max: 2, step: 0.05 },
+  { key: 'coreDamagePerSec', group: 'Core', label: 'damage per enemy (/s)', min: 0, max: 20, step: 0.5 },
   { key: 'playerHp', group: 'Hurt', label: 'player hp', min: 1, max: 20, step: 1 },
   { key: 'contactDamage', group: 'Hurt', label: 'contact damage', min: 0, max: 5, step: 0.5 },
   { key: 'hurtInvuln', group: 'Hurt', label: 'invulnerable (s)', min: 0, max: 3, step: 0.05 },

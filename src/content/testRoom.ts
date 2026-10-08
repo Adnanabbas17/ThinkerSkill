@@ -9,6 +9,14 @@ export interface Box {
   hh: number;
 }
 
+export type CoreId = 'A' | 'B' | 'C';
+
+export interface CoreDef {
+  id: CoreId;
+  /** Solid pillar; also listed in the room's obstacles. */
+  box: Box;
+}
+
 export interface Room {
   /** Playable interior bounds (walls sit just outside). */
   minX: number;
@@ -20,6 +28,8 @@ export interface Room {
   playerRadius: number;
   /** Where enemies appear. Keep each at least 1 m clear of walls and obstacles. */
   spawnPoints: { x: number; y: number }[];
+  /** Reactor cores to defend. None in the test room, so it can never be lost by cores. */
+  cores: CoreDef[];
 }
 
 export const testRoom: Room = {
@@ -54,4 +64,5 @@ export const testRoom: Room = {
     { x: 0, y: 8.5 },
     { x: 13, y: 8 },
   ],
+  cores: [],
 };
