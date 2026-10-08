@@ -42,3 +42,7 @@ Asset credits: see [ASSETS.md](ASSETS.md).
 ## Known issues
 
 - WebGPU device loss leaves a frozen canvas with a misleading fps; fix planned for a later milestone.
+
+## TODO
+
+- Fix enemy detour rule (pairs converge on a box face and jam). Separate approved task with unit test and balance re-check, required before the Milestone 2 room.
