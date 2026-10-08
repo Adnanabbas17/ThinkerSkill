@@ -1,15 +1,24 @@
-import type { Box, Room } from '../content/testRoom';
+import type { Box, CoreDef, CoreId, Room } from '../content/testRoom';
 import type { Tuning } from '../tuning/tuning';
 import { moveCircle, slide } from './collision';
 import { SIM_DT } from './fixedStep';
-import type { SimState, Vec2 } from './types';
+import type { EnemyState, SimState, Vec2 } from './types';
 import { copy, normalize, vec } from './vec';
 
 export const ENEMY_RADIUS = 0.45;
 /** How long a blocked enemy slides sideways before chasing directly again. */
 export const DETOUR_TIME = 0.5;
+/** An enemy this close to a box (beyond its own radius) counts as touching it. */
+export const CONTACT_SLOP = 0.05;
 
-export function spawnEnemy(s: SimState, pos: Vec2, t: Tuning): void {
+export function touchingBox(pos: Vec2, b: Box): boolean {
+  const dx = Math.max(Math.abs(pos.x - b.x) - b.hw, 0);
+  const dy = Math.max(Math.abs(pos.y - b.y) - b.hh, 0);
+  return Math.hypot(dx, dy) <= ENEMY_RADIUS + CONTACT_SLOP;
+}
+
+/** `targetCoreId` null: the enemy chases the hero. */
+export function spawnEnemy(s: SimState, pos: Vec2, t: Tuning, targetCoreId: CoreId | null = null): void {
   s.enemies.push({
     id: s.nextId++,
     pos: copy(pos),
@@ -21,11 +30,16 @@ export function spawnEnemy(s: SimState, pos: Vec2, t: Tuning): void {
     detourTime: 0,
     detourDir: vec(),
     dead: false,
+    targetCoreId,
   });
-  s.events.push({ type: 'enemySpawn', pos: copy(pos) });
+  s.events.push({ type: 'enemySpawn', pos: copy(pos), targetCoreId });
 }
 
-/** Chase the player, keep apart from each other, and hurt the player on contact. */
+/**
+ * Go for the target (a core, or the hero), keep apart from each other, and hurt the hero on
+ * contact. A core attacker ignores the hero and stays against its core once it touches it. If its
+ * core is lost, it switches to the nearest core still online.
+ */
 export function stepEnemies(s: SimState, t: Tuning, room: Room): void {
   const dt = SIM_DT;
   const p = s.player;
@@ -37,9 +51,12 @@ export function stepEnemies(s: SimState, t: Tuning, room: Room): void {
       e.spawnTime = Math.max(0, e.spawnTime - dt);
       continue;
     }
-    const toPlayer = normalize({ x: p.pos.x - e.pos.x, y: p.pos.y - e.pos.y });
-    e.detourTime = Math.max(0, e.detourTime - dt);
-    const dir = e.detourTime > 0 ? e.detourDir : toPlayer;
+    const core = targetCore(s, e, room);
+    const goal = core ? core.box : p.pos;
+    const clawing = core !== null && touchingBox(e.pos, core.box);
+    const toGoal = clawing ? null : normalize({ x: goal.x - e.pos.x, y: goal.y - e.pos.y });
+    e.detourTime = clawing ? 0 : Math.max(0, e.detourTime - dt);
+    const dir = e.detourTime > 0 ? e.detourDir : toGoal;
     const target = dir ? { x: dir.x * t.enemySpeed, y: dir.y * t.enemySpeed } : vec();
     const dx = target.x - e.vel.x;
     const dy = target.y - e.vel.y;
@@ -51,7 +68,7 @@ export function stepEnemies(s: SimState, t: Tuning, room: Room): void {
     const hits = moveCircle(e.pos, { x: e.vel.x * dt, y: e.vel.y * dt }, ENEMY_RADIUS, room);
     slide(e.vel, hits);
     // Pinned head-on against a box or wall: slide along its face for a moment.
-    if (toPlayer && hits.length > 0 && e.detourTime <= 0 && Math.hypot(e.vel.x, e.vel.y) < t.enemySpeed * 0.25) {
+    if (toGoal && hits.length > 0 && e.detourTime <= 0 && Math.hypot(e.vel.x, e.vel.y) < t.enemySpeed * 0.25) {
       e.detourDir = detourDirection(e.pos, hits[0], e.id, room);
       e.detourTime = DETOUR_TIME;
     }
@@ -83,6 +100,25 @@ export function stepEnemies(s: SimState, t: Tuning, room: Room): void {
       s.events.push({ type: 'playerDestroyed' });
     }
   }
+}
+
+/** The core an enemy is going for (switching to the nearest online core if its own is lost), or null for the hero. */
+function targetCore(s: SimState, e: EnemyState, room: Room): CoreDef | null {
+  if (e.targetCoreId === null) return null;
+  const i = room.cores.findIndex((c) => c.id === e.targetCoreId);
+  if (i >= 0 && !s.cores[i].lost) return room.cores[i];
+  let best: CoreDef | null = null;
+  let bestD = Infinity;
+  for (let j = 0; j < room.cores.length; j++) {
+    const c = room.cores[j];
+    const d = Math.hypot(c.box.x - e.pos.x, c.box.y - e.pos.y);
+    if (!s.cores[j].lost && d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  e.targetCoreId = best?.id ?? null;
+  return best;
 }
 
 /**

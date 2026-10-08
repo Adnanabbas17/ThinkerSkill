@@ -34,10 +34,12 @@ export type SolidKind = 'room' | 'cover' | 'console' | 'core';
 
 const box = (x: number, y: number, w: number, h: number): Box => ({ x, y, hw: w / 2, hh: h / 2 });
 
+// Equal target weights for now (slice 1a); the share of enemies that chase the hero instead is
+// the tuning value chasePlayerShare.
 const cores: CoreDef[] = [
-  { id: 'A', box: box(-8, -12.5, 1.6, 1.6) },
-  { id: 'B', box: box(-16, 12.5, 1.6, 1.6) },
-  { id: 'C', box: box(16, 12.5, 1.6, 1.6) },
+  { id: 'A', box: box(-8, -12.5, 1.6, 1.6), targetWeight: 1 },
+  { id: 'B', box: box(-16, 12.5, 1.6, 1.6), targetWeight: 1 },
+  { id: 'C', box: box(16, 12.5, 1.6, 1.6), targetWeight: 1 },
 ];
 
 const sourceRooms: SourceRoomDef[] = [

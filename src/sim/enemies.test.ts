@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cloneDefaults } from '../tuning/tuning';
-import { testRoom } from '../content/testRoom';
-import { ENEMY_RADIUS, faceEndClosed, spawnEnemy } from './enemies';
+import { testRoom, type CoreDef } from '../content/testRoom';
+import { ENEMY_RADIUS, faceEndClosed, spawnEnemy, touchingBox } from './enemies';
 import { SIM_DT } from './fixedStep';
 import { createSim, stepSim } from './sim';
 import { distToBox, emptyRoom, idle } from './testUtils';
@@ -189,5 +189,66 @@ describe('contact damage', () => {
     stepSim(s, { ...idle(), move: { x: 1, y: 0 }, fire: true }, tuning, room);
     expect(positions()).toBe(frozen);
     expect(s.shots).toEqual([]);
+  });
+});
+
+describe('core targeting', () => {
+  const coreA: CoreDef = { id: 'A', box: { x: -10, y: -6, hw: 0.8, hh: 0.8 }, targetWeight: 1 };
+  const coreB: CoreDef = { id: 'B', box: { x: 10, y: -6, hw: 0.8, hh: 0.8 }, targetWeight: 1 };
+  const coreRoom = emptyRoom({ cores: [coreA, coreB], obstacles: [coreA.box, coreB.box] });
+  const tuning = { ...t, enemySpawnTime: 0 };
+  const steps = (s: SimState, n: number) => {
+    const types: string[] = [];
+    for (let i = 0; i < n; i++) {
+      stepSim(s, idle(), tuning, coreRoom);
+      types.push(...s.events.map((e) => e.type));
+    }
+    return types;
+  };
+
+  it('a core attacker walks to its core, then stays against it instead of chasing the hero', () => {
+    const s = createSim(coreRoom, 1);
+    spawnEnemy(s, { x: -10, y: 6 }, tuning, 'A');
+    steps(s, 5 * 60);
+    const e = s.enemies[0];
+    expect(touchingBox(e.pos, coreA.box)).toBe(true);
+    const here = { ...e.pos };
+    steps(s, 2 * 60);
+    expect(touchingBox(e.pos, coreA.box)).toBe(true);
+    expect(Math.hypot(e.pos.x - here.x, e.pos.y - here.y)).toBeLessThan(0.05);
+    expect(s.cores[0].integrity).toBeLessThan(100);
+  });
+
+  it('ignores the hero, but still hurts the hero on contact on its way', () => {
+    const s = createSim(coreRoom, 1);
+    s.player.pos = { x: -10, y: 0 }; // standing on the enemy's path to core A
+    spawnEnemy(s, { x: -10, y: 6 }, tuning, 'A');
+    const types = steps(s, 3 * 60);
+    expect(types).toContain('playerHurt');
+    expect(s.enemies[0].targetCoreId).toBe('A');
+    s.player.pos = { x: 5, y: 5 }; // step aside: it carries on to its core, not after the hero
+    steps(s, 5 * 60);
+    expect(touchingBox(s.enemies[0].pos, coreA.box)).toBe(true);
+  });
+
+  it('when its core is lost, switches to the nearest core still online', () => {
+    const three: CoreDef = { id: 'C', box: { x: 10, y: 6, hw: 0.8, hh: 0.8 }, targetWeight: 1 };
+    const room = emptyRoom({ cores: [coreA, coreB, three], obstacles: [coreA.box, coreB.box, three.box] });
+    const s = createSim(room, 1);
+    spawnEnemy(s, { x: 6, y: 4 }, tuning, 'A'); // nearer to C than to B
+    s.cores[0].lost = true;
+    stepSim(s, idle(), tuning, room);
+    expect(s.enemies[0].targetCoreId).toBe('C');
+    s.cores[2].lost = true;
+    stepSim(s, idle(), tuning, room);
+    expect(s.enemies[0].targetCoreId).toBe('B');
+  });
+
+  it('a hero chaser (no target core) still chases the hero in a room with cores', () => {
+    const s = createSim(coreRoom, 1);
+    spawnEnemy(s, { x: 0, y: 8 }, tuning);
+    steps(s, 30);
+    expect(s.enemies[0].vel.y).toBeLessThan(0); // towards the hero at the origin
+    expect(s.enemies[0].targetCoreId).toBe(null);
   });
 });

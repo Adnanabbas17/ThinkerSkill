@@ -48,6 +48,8 @@ export interface EnemyState {
   detourTime: number;
   detourDir: Vec2;
   dead: boolean;
+  /** Core this enemy attacks; null = it chases the hero. */
+  targetCoreId: CoreId | null;
 }
 
 export interface ShotState {
@@ -86,7 +88,7 @@ export type SimEvent =
   | { type: 'dash' }
   | { type: 'fire' }
   | { type: 'shotBlocked'; pos: Vec2 }
-  | { type: 'enemySpawn'; pos: Vec2 }
+  | { type: 'enemySpawn'; pos: Vec2; targetCoreId: CoreId | null }
   | { type: 'enemyHit'; pos: Vec2 }
   | { type: 'enemyKilled'; pos: Vec2 }
   | { type: 'playerHurt' }

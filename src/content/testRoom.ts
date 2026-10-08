@@ -15,6 +15,8 @@ export interface CoreDef {
   id: CoreId;
   /** Solid pillar; also listed in the room's obstacles. */
   box: Box;
+  /** Relative chance that a core-bound enemy picks this core at spawn. */
+  targetWeight: number;
 }
 
 export interface Room {

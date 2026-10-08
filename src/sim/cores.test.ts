@@ -10,7 +10,7 @@ import type { SimEvent, SimState } from './types';
 // Enemies stand still (speed 0) so contact is exact; spawn warning off unless a test wants it.
 const t = { ...cloneDefaults(), enemySpeed: 0, enemySpawnTime: 0, contactDamage: 0 };
 
-const core = (id: CoreId, x: number, y: number): CoreDef => ({ id, box: { x, y, hw: 0.8, hh: 0.8 } });
+const core = (id: CoreId, x: number, y: number): CoreDef => ({ id, box: { x, y, hw: 0.8, hh: 0.8 }, targetWeight: 1 });
 const threeCores = [core('A', -10, -6), core('B', -10, 6), core('C', 10, 6)];
 const roomWith = (cores: CoreDef[]) => emptyRoom({ cores, obstacles: cores.map((c) => c.box) });
 
