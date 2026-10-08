@@ -275,7 +275,7 @@ Measured with the default camera (height 16, back 9, FOV 50, 16:9):
 `pulseRange` = **10.5 m** (tuning, live-editable; was 14 m). A Pulse shot is removed once it has travelled
 `pulseRange`. 10.5 m is the largest 0.5 m step at which no open-floor spot reaches enemies at 2 cores (see R6).
 Rule test in `src/content/arena.test.ts`: it fails if any pair is coverable at the default range.
-Trade-off: shots now end about 2.8 m before the top edge of the screen, so some visible threats are out of reach.
+Trade-off: shots now end about 2.3 m before the top edge of the screen (11 m from the hero vs 13.3 m), so some visible threats are out of reach.
 Range mechanism (14 m build): owner playtest **PASSED**, no fade or puff needed. The feel of **10.5 m is NOT yet
 playtested**. It also applies in `?room=test`.
 
