@@ -1,4 +1,4 @@
-import { testRoom } from './content/testRoom';
+import { chooseRoom } from './content/arena';
 import { testWaves } from './content/testWaves';
 import { createInput } from './input/input';
 import { createView, wantsForcedWebGL } from './render/scene';
@@ -15,7 +15,7 @@ async function start(): Promise<void> {
   const hud = createHud(document);
 
   try {
-    const room = testRoom;
+    const room = chooseRoom(location.search);
     const tuning = loadTuning();
     const view = await createView(canvas, wantsForcedWebGL(location.search), room);
     hud.setBackend(view.backend);

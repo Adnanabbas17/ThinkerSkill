@@ -2,6 +2,7 @@ import {
   AdditiveBlending,
   AmbientLight,
   BoxGeometry,
+  CanvasTexture,
   Color,
   DirectionalLight,
   Group,
@@ -13,9 +14,11 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  SRGBColorSpace,
   Vector3,
   WebGPURenderer,
 } from 'three/webgpu';
+import { isArena, solidParts, type SolidKind } from '../content/arena';
 import type { Room } from '../content/testRoom';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ENEMY_RADIUS } from '../sim/enemies';
@@ -56,6 +59,11 @@ const IMPACT_POOL = 8;
 const SPARKS = 8;
 const WALL_HEIGHT = 1.6;
 const OBSTACLE_HEIGHT = 1.4;
+const ROOM_HEIGHT = 2;
+const CONSOLE_HEIGHT = 1;
+const CORE_HEIGHT = 2.4;
+const VENT_SIZE = 1.2;
+const LABEL_SIZE = 1.5;
 
 /**
  * Every scene color in one place. Placeholder theme: classic 8-bit platformer
@@ -77,6 +85,13 @@ export const PALETTE = {
   enemyEye: 0xfcfcfc,
   flash: 0xffffff,
   tracer: 0xfff0b0,
+  // Milestone 2 grey boxes (arena only).
+  greyRoom: 0x8a8a8a,
+  greyCover: 0xb0b0b0,
+  greyConsole: 0x5c5c5c,
+  greyCore: 0xd6d6d6,
+  vent: 0x6e6e6e,
+  floorLabel: '#ececec',
   ambient: 0xfff4e0,
   sun: 0xffffff,
 };
@@ -88,6 +103,25 @@ const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 function box(w: number, h: number, d: number, mat: MeshStandardMaterial, x: number, y: number, z: number): Mesh {
   const m = new Mesh(new BoxGeometry(w, h, d), mat);
   m.position.set(x, y, z);
+  return m;
+}
+
+/** A flat letter painted on the floor, readable from the camera (top of the letter = up the screen). */
+function floorLabel(text: string, x: number, z: number): Mesh {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = PALETTE.floorLabel;
+  ctx.font = 'bold 112px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 64, 68);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  const mat = new MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+  const m = new Mesh(new PlaneGeometry(LABEL_SIZE, LABEL_SIZE), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, 0.02, z);
   return m;
 }
 
@@ -124,9 +158,30 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
     box(t, WALL_HEIGHT, d, wallMat, room.minX - t / 2, yWall, cz),
     box(t, WALL_HEIGHT, d, wallMat, room.maxX + t / 2, yWall, cz),
   );
+  // Every obstacle is drawn (solidParts gives one part per obstacle), so nothing collides unseen.
+  // The test room keeps its green blocks; the arena uses grey boxes per kind.
+  const arenaLook: Record<SolidKind, { mat: MeshStandardMaterial; height: number }> = {
+    room: { mat: matte(PALETTE.greyRoom), height: ROOM_HEIGHT },
+    cover: { mat: matte(PALETTE.greyCover), height: OBSTACLE_HEIGHT },
+    console: { mat: matte(PALETTE.greyConsole), height: CONSOLE_HEIGHT },
+    core: { mat: matte(PALETTE.greyCore), height: CORE_HEIGHT },
+  };
   const obstacleMat = matte(PALETTE.obstacle);
-  for (const o of room.obstacles) {
-    scene.add(box(o.hw * 2, OBSTACLE_HEIGHT, o.hh * 2, obstacleMat, o.x, OBSTACLE_HEIGHT / 2, o.y));
+  for (const { kind, box: o } of solidParts(room)) {
+    const look = isArena(room) ? arenaLook[kind] : { mat: obstacleMat, height: OBSTACLE_HEIGHT };
+    scene.add(box(o.hw * 2, look.height, o.hh * 2, look.mat, o.x, look.height / 2, o.y));
+  }
+  if (isArena(room)) {
+    // Spawn vents: flat grey squares, nothing to collide with.
+    const ventGeo = new PlaneGeometry(VENT_SIZE, VENT_SIZE);
+    const ventMat = matte(PALETTE.vent);
+    for (const v of room.spawnPoints) {
+      const m = new Mesh(ventGeo, ventMat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(v.x, 0.01, v.y);
+      scene.add(m);
+    }
+    for (const l of room.floorLabels) scene.add(floorLabel(l.text, l.x, l.y));
   }
 
   // Placeholder hero: body plus a nose that points along the aim (+z in local space).
