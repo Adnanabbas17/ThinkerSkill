@@ -467,4 +467,4 @@ win per bot.
 | R3 | Players miss the point of scanning | Disguise share starts at 0 and grows; first disguised threat appears only after the player has seen all 3 types. |
 | R4 | Run log growth over 8 min | Roughly a few thousand entries; fine for memory and the determinism test. |
 | R5 | Performance with more objects | All grey boxes share geometry and materials (as the robots do); check fps in slice 5 and 8. |
-| R6 | Known asymmetry: at 14 m only A+B is coverable from one spot (x -15 to -10.5, y -2 to 2). At 12 m no pair is coverable. | No change now. Revisit after the bot tests. |
+| R6 | Known asymmetry: at 14 m only A+B is coverable from one spot (x -15 to -10.5, y -2 to 2). At 12 m the A+B margin is only 0.13 m, smaller than an enemy radius, so 12 m is NOT a reliable fix. | No change now. If the asymmetry needs fixing, consider moving core A. Revisit after the bot tests. |
