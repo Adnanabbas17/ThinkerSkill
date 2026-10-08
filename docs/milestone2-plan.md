@@ -257,6 +257,7 @@ Measured with the default camera (height 16, back 9, FOV 50, 16:9) and Pulse ran
 `pulseRange` = 14 m (tuning, live-editable). A Pulse shot is removed once it has travelled `pulseRange`. At least
 13.3 m keeps shots reaching the top edge of the screen; under 17.2 m keeps any one spot from covering all 3 cores.
 Built ahead of slice 1a; it also applies in `?room=test`.
+Owner playtest: **PASSED**, no issues. Expired shots vanish with no fade or puff; none is needed.
 
 ### Threats (`threats.ts`)
 | Type | Grey-box look | Behaviour | Counter tool |
