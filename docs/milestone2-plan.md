@@ -169,9 +169,10 @@ is possible.
   there restarts).
 - **Sim rules added:** none in play; scoring functions only (section 3).
 - **Unit tests:** each score from hand-built logs (perfect play = 100, worst play = 0); a component one below its
-  minimum sample makes its skill show "not enough data", exactly at the minimum it scores; a skill with not enough
-  data is left out of the rating; the rating itself shows "not enough data" when all three skills do; "what was
-  missed" lists each item type; timeline is sorted and capped.
+  minimum is skipped and the remaining weights renormalise (checked with exact numbers), and exactly at its minimum
+  it counts; a skill whose components with data are worth less than half its weight shows "not enough data", and
+  exactly half still scores; a skill with not enough data is left out of the rating; the rating shows "not enough
+  data" when all three skills do; "what was missed" lists each item type; timeline is sorted and capped.
 - **Browser check:** finish or lose a run; the debrief shows the timeline, missed items, three skill scores and
   the Thinker Skill rating; R starts a new run.
 
@@ -326,9 +327,14 @@ The HUD shows what E will do ("E: scan", "E: flip breaker 2") before the hold st
 without first checking it. "Responded to a real alarm" is derived: the hero came within 5 m of that core within 15 s.
 
 ### Minimum sample sizes
-A score built on too few events is noise, so each component has a minimum. If **any** component of a skill is below
-its minimum, that skill shows **"not enough data"** and is left out of the rating. If all three skills lack data,
+A score built on too few events is noise, so each component has a minimum. A component below its minimum is
+**skipped**, and the skill's weights are renormalised over the components that have data. A skill shows
+**"not enough data"** only when the components that have data are worth **less than half** of its weight
+(exactly half still scores). A skill with not enough data is left out of the rating; if all three lack data,
 the rating shows "not enough data" too.
+
+Examples: Critical thinking with only tool uses (weight 0.4) shows not enough data; tool uses plus false alarms
+(0.7) scores, with weights 0.4/0.7 and 0.3/0.7. Crisis management with only average integrity (0.5) scores.
 
 | Skill | Component | Minimum |
 |---|---|---|
