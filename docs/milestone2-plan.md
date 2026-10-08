@@ -2,7 +2,8 @@
 
 Status: **revision 3.** Slice 0 is built and its playtest passed. Arena Proposal A (40 x 32 m) and a Pulse range
 of 14 m are approved. Proposal B (keep 40 x 28, move room N west) was rejected. Pulse range playtest passed.
-Slice 1a is built and deployed, waiting for the owner's playtest. Slice 1b is not started.
+Slice 1a is built and deployed. Its playtest found that camping just left of the start held cores A and B; fixed
+by range (R6): `pulseRange` is now 10.5 m. The feel of the 10.5 m range is NOT yet playtested. Slice 1b is not started.
 
 M1 acceptance: WAIVED. The 5-first-time-player test was not run. Owner
 playtests passed (movement, dash, camera, hero, slice 0). Recorded risk:
@@ -261,20 +262,22 @@ under the 3 s minimum).
 | Floor labels A / B / C | (-8, -10), (-13.5, 12.5), (13.5, 12.5) | same |
 | Player start | (0, 0) | - |
 
-Measured with the default camera (height 16, back 9, FOV 50, 16:9) and Pulse range 14 m:
+Measured with the default camera (height 16, back 9, FOV 50, 16:9):
 - **Camera:** At most 1 core on screen from open floor. From inside room S, B and C both show. Never all 3 from
   anywhere.
 - **Walks between cores (7 m/s, no dash):** A-B 3.50 s, A-C 4.55 s, B-C 4.29 s.
-- **Pulse:** at most 2 cores coverable from one spot; all 3 would need about 17.2 to 17.5 m. See R6.
+- **Pulse:** at the default 10.5 m, no core pair is coverable from any open-floor spot (rule test). See R6.
 - **Gaps:** between solids 3.51 m; solids to outer wall 2.70 m; start clearance 3.70 m; vent clearance 2.00 m.
 - **Reachability:** all vents, terminals and labels connect to the start; each core is approachable from 4 sides.
 - Start to cores: A 2.0 s, B 2.8 s, C 2.8 s (information only).
 
 ### Pulse range
-`pulseRange` = 14 m (tuning, live-editable). A Pulse shot is removed once it has travelled `pulseRange`. At least
-13.3 m keeps shots reaching the top edge of the screen; under 17.2 m keeps any one spot from covering all 3 cores.
-Built ahead of slice 1a; it also applies in `?room=test`.
-Owner playtest: **PASSED**, no issues. Expired shots vanish with no fade or puff; none is needed.
+`pulseRange` = **10.5 m** (tuning, live-editable; was 14 m). A Pulse shot is removed once it has travelled
+`pulseRange`. 10.5 m is the largest 0.5 m step at which no open-floor spot reaches enemies at 2 cores (see R6).
+Rule test in `src/content/arena.test.ts`: it fails if any pair is coverable at the default range.
+Trade-off: shots now end about 2.8 m before the top edge of the screen, so some visible threats are out of reach.
+Range mechanism (14 m build): owner playtest **PASSED**, no fade or puff needed. The feel of **10.5 m is NOT yet
+playtested**. It also applies in `?room=test`.
 
 ### Threats (`threats.ts`)
 | Type | Grey-box look | Behaviour | Counter tool |
@@ -467,7 +470,7 @@ win per bot.
 | # | Question or risk | Recommendation |
 |---|---|---|
 | Q1 | Milestone 1 acceptance (5 first-time players) | **Decided:** waived. See the status note at the top. |
-| Q2 | Arena size | **Decided:** 40 x 32 m (Proposal A) with Pulse range 14 m. 40 x 28 could not meet the layout rules. See section 2, "Arena layout". |
+| Q2 | Arena size | **Decided:** 40 x 32 m (Proposal A); Pulse range now 10.5 m (R6). 40 x 28 could not meet the layout rules. See section 2, "Arena layout". |
 | Q3 | How can a human tell a false alarm? | **Decided:** the alarmed core's HUD bar shows a spoofed drop (reported integrity) while real integrity is unchanged. Only a scan of the core or a visit reveals the true value. Real damage always shows. |
 | Q4 | How can a human tell a false clue? | Corroboration: true facts appear twice, false ones once and contradict a true one. Scanning stays for threats only. |
 | Q5 | Wrong tool effect | 0 damage, energy spent, "RESISTED" shown. Clear feedback beats partial damage. |
@@ -485,4 +488,4 @@ win per bot.
 | R3 | Players miss the point of scanning | Disguise share starts at 0 and grows; first disguised threat appears only after the player has seen all 3 types. |
 | R4 | Run log growth over 8 min | Roughly a few thousand entries; fine for memory and the determinism test. |
 | R5 | Performance with more objects | All grey boxes share geometry and materials (as the robots do); check fps in slice 5 and 8. |
-| R6 | Known asymmetry. With real reach at pulseRange 14 (hero centre to enemy centre about 15.07 m, enemies touching the near side of a core, shots blocked by solids), only A+B is coverable from one spot, from **x -15 to -2.5, y -3.75 to 3.5** (within 2.5 m of the start). B+C is in reach by distance only near (0, 10), just north of room S's door; covers (-9, 11) and (9, 11) block those shots, so moving them would open B+C. A+C and all 3: never. At 12 m the A+B margin (centre-distance measure) is only 0.13 m, smaller than an enemy radius, so 12 m is NOT a reliable fix. | No change now. If the asymmetry needs fixing, consider moving core A. Revisit after the bot tests. |
+| R6 | **Resolved by range.** Slice 1a playtest: camping just left of the start held A and B at 14 m. With real reach (hero centre to enemy centre = 0.5 m muzzle + range + 0.57 m hit radius, enemy touching the near side of a core, cover ignored), pairs become coverable at: A+B 10.61 m (from (-12, 0)), B+C 13.70 m, A+C 14.68 m. Default set to 10.5 m (0.11 m margin on A+B); no pair is coverable from any open-floor spot. Enemies still walking to a core can be shot earlier; the rule covers enemies already at a core. | Rule test guards it. Playtest the 10.5 m feel. Layout unchanged. |
