@@ -2,6 +2,7 @@ import type { Room } from '../content/testRoom';
 import type { Wave } from '../content/testWaves';
 import type { Tuning } from '../tuning/tuning';
 import { createCores, stepCores } from './cores';
+import { appendToLog } from './log';
 import { stepEnemies } from './enemies';
 import { createPlayer, stepPlayer } from './player';
 import { fire, stepShots } from './projectiles';
@@ -24,6 +25,7 @@ export function createSim(room: Room, seed: number, waves: readonly Wave[] = [])
     nextId: 1,
     rngState: seed >>> 0,
     events: [],
+    log: [],
   };
 }
 
@@ -45,6 +47,7 @@ export function stepSim(state: SimState, input: TickInput, tuning: Tuning, room:
     stepCores(state, tuning, room);
     stepWaves(state, tuning, room);
   }
+  appendToLog(state.log, state.tick, state.events);
   state.tick++;
   return state;
 }

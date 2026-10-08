@@ -21,6 +21,7 @@ export function touchingBox(pos: Vec2, b: Box): boolean {
 export function spawnEnemy(s: SimState, pos: Vec2, t: Tuning, targetCoreId: CoreId | null = null): void {
   s.enemies.push({
     id: s.nextId++,
+    type: 'crawler',
     pos: copy(pos),
     prevPos: copy(pos),
     vel: vec(),

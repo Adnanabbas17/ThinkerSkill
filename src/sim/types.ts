@@ -34,8 +34,12 @@ export interface PlayerState {
   fireCooldown: number;
 }
 
+/** Only crawlers exist until slice 3. */
+export type ThreatType = 'crawler';
+
 export interface EnemyState {
   id: number;
+  type: ThreatType;
   pos: Vec2;
   prevPos: Vec2;
   vel: Vec2;
@@ -96,9 +100,15 @@ export type SimEvent =
   | { type: 'waveStart'; wave: number }
   | { type: 'roomCleared' }
   /** Integrity removed from a core this tick (one event per damaged core per tick). */
-  | { type: 'coreDamaged'; coreId: CoreId; amount: number; cause: 'threat' }
+  | { type: 'coreDamaged'; coreId: CoreId; amount: number; cause: 'threat'; threatType: ThreatType }
   | { type: 'coreLost'; coreId: CoreId }
   | { type: 'allCoresLost' };
+
+/** One entry of the persistent run log: the event and the tick it happened on. */
+export interface LoggedEvent {
+  tick: number;
+  event: SimEvent;
+}
 
 export interface SimState {
   tick: number;
@@ -116,4 +126,6 @@ export interface SimState {
   rngState: number;
   /** Events emitted during the last tick only. */
   events: SimEvent[];
+  /** Every event of the run so far, in order, with its tick (for the debrief). Never cleared. */
+  log: LoggedEvent[];
 }

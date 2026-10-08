@@ -2,7 +2,7 @@ import type { Room } from '../content/testRoom';
 import type { Tuning } from '../tuning/tuning';
 import { touchingBox } from './enemies';
 import { SIM_DT } from './fixedStep';
-import type { CoreState, SimState } from './types';
+import type { CoreState, SimState, ThreatType } from './types';
 
 export const CORE_MAX_INTEGRITY = 100;
 
@@ -20,13 +20,20 @@ export function stepCores(s: SimState, t: Tuning, room: Room): void {
   room.cores.forEach((def, i) => {
     const core = s.cores[i];
     if (core.lost) return;
-    let touching = 0;
-    for (const e of s.enemies) if (!e.dead && e.spawnTime <= 0 && touchingBox(e.pos, def.box)) touching++;
-    if (touching === 0) return;
-    const amount = Math.min(core.integrity, touching * t.coreDamagePerSec * SIM_DT);
+    const touching = new Map<ThreatType, number>();
+    for (const e of s.enemies) {
+      if (!e.dead && e.spawnTime <= 0 && touchingBox(e.pos, def.box)) touching.set(e.type, (touching.get(e.type) ?? 0) + 1);
+    }
+    let want = 0;
+    for (const n of touching.values()) want += n * t.coreDamagePerSec * SIM_DT;
+    const amount = Math.min(core.integrity, want);
     if (amount <= 0) return;
     core.integrity -= amount;
-    s.events.push({ type: 'coreDamaged', coreId: core.id, amount, cause: 'threat' });
+    // One event per threat type, sharing the (possibly capped) damage in proportion.
+    for (const [threatType, n] of touching) {
+      const share = (n * t.coreDamagePerSec * SIM_DT * amount) / want;
+      s.events.push({ type: 'coreDamaged', coreId: core.id, amount: share, cause: 'threat', threatType });
+    }
     if (core.integrity <= 1e-9) {
       core.integrity = 0;
       core.lost = true;
