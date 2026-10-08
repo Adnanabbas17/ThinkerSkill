@@ -1,4 +1,5 @@
 import type { CoreId } from '../content/testRoom';
+import type { EndlessRules } from '../content/waves';
 import type { Wave } from '../content/testWaves';
 
 export interface Vec2 {
@@ -121,6 +122,10 @@ export interface SimState {
   shots: ShotState[];
   waves: readonly Wave[];
   wave: WaveProgress;
+  /** Endless mode (the arena): waves never end and escalate. null = the finite `waves` list. */
+  endless: EndlessRules | null;
+  /** Endless mode: seconds to the next spawn. */
+  spawnTimer: number;
   nextId: number;
   /** Seeded random state (mulberry32), kept in the state so a run is fully reproducible. */
   rngState: number;

@@ -5,7 +5,8 @@ import { SIM_DT } from './fixedStep';
 import { createSim, stepSim } from './sim';
 import { emptyRoom, idle } from './testUtils';
 import type { SimState } from './types';
-import { pickTarget, SPAWN_MIN_DIST } from './waves';
+import { pickTarget, SPAWN_MIN_DIST, spawnInterval } from './waves';
+import { endlessRules, type EndlessRules } from '../content/waves';
 import type { CoreDef } from '../content/testRoom';
 
 const t = cloneDefaults();
@@ -134,5 +135,73 @@ describe('waves', () => {
       expect(spawn).not.toBe(null);
       expect(spawn).toHaveProperty('targetCoreId', s.enemies[0].targetCoreId);
     });
+  });
+});
+
+describe('endless waves', () => {
+  const rules: EndlessRules = { firstSpawn: 1.5, startInterval: 3, endInterval: 1, rampSeconds: 300, maxAlive: 20 };
+  const tuning = { ...t, playerHp: 999 };
+  /** Spawn ticks over `seconds`, killing every enemy each tick so maxAlive never holds spawns back. */
+  const spawnTicks = (seconds: number, r = rules, seed = 1) => {
+    const s = createSim(room, seed, [], r);
+    const ticks: number[] = [];
+    for (let i = 0; i < seconds * 60; i++) {
+      stepSim(s, idle(), tuning, room);
+      if (s.events.some((e) => e.type === 'enemySpawn')) ticks.push(s.tick - 1);
+      killAll(s);
+    }
+    return { s, ticks };
+  };
+
+  it('spawnInterval shrinks linearly from startInterval to endInterval, then holds', () => {
+    expect(spawnInterval(rules, 0)).toBe(3);
+    expect(spawnInterval(rules, 150)).toBe(2);
+    expect(spawnInterval(rules, 300)).toBe(1);
+    expect(spawnInterval(rules, 900)).toBe(1);
+  });
+
+  it('the first spawn comes after firstSpawn seconds', () => {
+    const { ticks } = spawnTicks(10);
+    expect(ticks[0]).toBe(Math.round(rules.firstSpawn * 60) - 1);
+  });
+
+  it('keeps spawning past rampSeconds and never wins, even with every enemy killed', () => {
+    const { s, ticks } = spawnTicks(600);
+    expect(s.status).toBe('playing');
+    expect(ticks.filter((k) => k > 300 * 60 + 1).length).toBeGreaterThan(200); // about 300 s at 1 s
+    expect(s.events.some((e) => e.type === 'roomCleared')).toBe(false);
+  });
+
+  it('escalates: more spawns per minute later in the run, then a steady rate', () => {
+    const { ticks } = spawnTicks(480);
+    const perMinute = (m: number) => ticks.filter((k) => k >= m * 3600 && k < (m + 1) * 3600).length;
+    expect(perMinute(1)).toBeGreaterThan(perMinute(0));
+    expect(perMinute(3)).toBeGreaterThan(perMinute(1));
+    expect(perMinute(6)).toBe(perMinute(7)); // fully escalated: 1 spawn per second, 60 per minute
+    expect(perMinute(6)).toBeGreaterThanOrEqual(59);
+  });
+
+  it('holds spawns at maxAlive and resumes as soon as one dies', () => {
+    const small = { ...rules, maxAlive: 3, startInterval: 1, endInterval: 1 };
+    const s = createSim(room, 1, [], small);
+    for (let i = 0; i < 20 * 60; i++) stepSim(s, idle(), tuning, room);
+    expect(s.enemies).toHaveLength(3);
+    s.enemies.pop();
+    stepSim(s, idle(), tuning, room);
+    expect(s.enemies).toHaveLength(3);
+  });
+
+  it('the finite waves list is unchanged without endless rules (test room)', () => {
+    const s = createSim(room, 1, waves);
+    expect(s.endless).toBe(null);
+    stepSim(s, idle(), t, room);
+    expect(s.events).toContainEqual({ type: 'waveStart', wave: 0 });
+  });
+
+  it('is deterministic: same seed, same spawns; different seeds differ', () => {
+    const run = (seed: number) => JSON.stringify(spawnTicks(60, rules, seed).s.log);
+    expect(run(4)).toBe(run(4));
+    expect(run(4)).not.toBe(run(5));
+    expect(endlessRules.maxAlive).toBeGreaterThan(0);
   });
 });

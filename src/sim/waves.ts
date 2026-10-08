@@ -1,5 +1,6 @@
 import type { CoreId, Room } from '../content/testRoom';
 import type { Tuning } from '../tuning/tuning';
+import type { EndlessRules } from '../content/waves';
 import { spawnEnemy } from './enemies';
 import { SIM_DT } from './fixedStep';
 import { mulberry32 } from './rng';
@@ -15,9 +16,32 @@ function random(s: SimState): number {
   return r.value;
 }
 
-/** Run the wave schedule: spawn, advance when a wave is cleared, win after the last. */
+/** Seconds between spawns after `elapsed` seconds: shrinks linearly, then holds at endInterval. */
+export function spawnInterval(rules: EndlessRules, elapsed: number): number {
+  const k = Math.min(1, Math.max(0, elapsed / rules.rampSeconds));
+  return rules.startInterval + (rules.endInterval - rules.startInterval) * k;
+}
+
+/** Endless mode: spawn on a timer that speeds up, held back while maxAlive enemies are alive. Never wins. */
+function stepEndless(s: SimState, rules: EndlessRules, t: Tuning, room: Room): void {
+  s.spawnTimer -= SIM_DT;
+  if (s.spawnTimer > 1e-9) return;
+  if (s.enemies.length >= rules.maxAlive) {
+    s.spawnTimer = 0; // wait for a free slot, then spawn at once
+    return;
+  }
+  spawnEnemy(s, pickSpawn(s, room), t, pickTarget(s, t, room));
+  s.spawnTimer += spawnInterval(rules, s.tick * SIM_DT);
+}
+
+/**
+ * Run the wave schedule. Endless mode spawns forever. Otherwise: spawn, advance when a wave is
+ * cleared, win after the last.
+ */
 export function stepWaves(s: SimState, t: Tuning, room: Room): void {
-  if (s.waves.length === 0 || s.status !== 'playing') return;
+  if (s.status !== 'playing') return;
+  if (s.endless) return stepEndless(s, s.endless, t, room);
+  if (s.waves.length === 0) return;
   const w = s.wave;
 
   if (w.toSpawn > 0) {

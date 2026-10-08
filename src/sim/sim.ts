@@ -1,5 +1,6 @@
 import type { Room } from '../content/testRoom';
 import type { Wave } from '../content/testWaves';
+import type { EndlessRules } from '../content/waves';
 import type { Tuning } from '../tuning/tuning';
 import { createCores, stepCores } from './cores';
 import { appendToLog } from './log';
@@ -10,8 +11,11 @@ import type { SimState, SimStatus, TickInput } from './types';
 import { copy } from './vec';
 import { stepWaves } from './waves';
 
-/** With no waves the room is a sandbox: no enemies, never won or lost. */
-export function createSim(room: Room, seed: number, waves: readonly Wave[] = []): SimState {
+/**
+ * With no waves and no endless rules the room is a sandbox: no enemies, never won or lost. A finite
+ * `waves` list ends in a win when cleared; `endless` rules never end by waves (only by losing).
+ */
+export function createSim(room: Room, seed: number, waves: readonly Wave[] = [], endless: EndlessRules | null = null): SimState {
   return {
     tick: 0,
     status: 'playing',
@@ -22,6 +26,8 @@ export function createSim(room: Room, seed: number, waves: readonly Wave[] = [])
     shots: [],
     waves,
     wave: { index: -1, toSpawn: 0, timer: 0 },
+    endless,
+    spawnTimer: endless ? endless.firstSpawn : 0,
     nextId: 1,
     rngState: seed >>> 0,
     events: [],

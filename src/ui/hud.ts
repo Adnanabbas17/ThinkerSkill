@@ -39,6 +39,7 @@ export function createHud(doc: Document): Hud {
   const backendEl = doc.getElementById('hud-backend')!;
   const hpEl = doc.getElementById('hud-hp')!;
   const waveEl = doc.getElementById('hud-wave')!;
+  const waveLabelEl = doc.getElementById('hud-wave-label')!;
   const tryEl = doc.getElementById('hud-try')!;
   const bannerEl = doc.getElementById('hud-banner')!;
   const coresEl = doc.getElementById('hud-cores')!;
@@ -55,7 +56,12 @@ export function createHud(doc: Document): Hud {
       const max = Math.ceil(tuning.playerHp);
       const hp = Math.max(0, Math.ceil(tuning.playerHp - state.player.damage - 1e-9));
       const total = state.waves.length;
-      const wave = state.status === 'won' ? 'cleared' : `${Math.max(1, state.wave.index + 1)} / ${total}`;
+      const secs = Math.floor(state.tick / 60);
+      const wave = state.endless
+        ? `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+        : state.status === 'won'
+          ? 'cleared'
+          : `${Math.max(1, state.wave.index + 1)} / ${total}`;
       const cores = state.cores.map((c) => Math.ceil(c.integrity - 1e-9));
       const key = `${hp}|${max}|${wave}|${tryNumber}|${state.status}|${cores.join(',')}`;
       if (key === lastGame) return; // touch the DOM only when something changed
@@ -72,6 +78,7 @@ export function createHud(doc: Document): Hud {
       hpEl.textContent = `${'■'.repeat(hp)}${'□'.repeat(Math.max(0, max - hp))} ${hp}/${max}`;
       hpEl.classList.toggle('low', hp <= 1);
       waveEl.textContent = wave;
+      waveLabelEl.textContent = state.endless ? 'Time' : 'Wave';
       tryEl.textContent = String(tryNumber);
       bannerEl.hidden = state.status === 'playing';
       if (state.status === 'won') bannerEl.innerHTML = 'Room cleared<small>Press R to play again</small>';

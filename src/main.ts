@@ -1,4 +1,6 @@
-import { chooseRoom } from './content/arena';
+import { chooseRoom, isArena } from './content/arena';
+import { endlessRules } from './content/waves';
+import type { Room } from './content/testRoom';
 import { testWaves } from './content/testWaves';
 import { createInput } from './input/input';
 import { createView, wantsForcedWebGL } from './render/scene';
@@ -9,6 +11,9 @@ import { createTuningPanel } from './tuning/panel';
 import { loadTuning } from './tuning/storage';
 import { createHud } from './ui/hud';
 import { createSfx } from './ui/sfx';
+
+/** The arena runs endless waves; the M1 test room keeps its three finite waves. */
+const newRun = (room: Room, seed: number) => (isArena(room) ? createSim(room, seed, [], endlessRules) : createSim(room, seed, testWaves));
 
 async function start(): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -25,7 +30,7 @@ async function start(): Promise<void> {
 
     // New seed each try so spawns differ; R restarts once the run has ended.
     let tryNumber = 1;
-    let state = createSim(room, tryNumber, testWaves);
+    let state = newRun(room, tryNumber);
     const frameEvents: SimEvent[] = [];
     let acc = 0;
     let alpha = 1;
@@ -38,7 +43,7 @@ async function start(): Promise<void> {
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'KeyR' || e.repeat || state.status === 'playing') return;
       tryNumber++;
-      state = createSim(room, tryNumber, testWaves);
+      state = newRun(room, tryNumber);
       acc = 0;
     });
 
