@@ -3,7 +3,8 @@
 Status: **revision 3.** Slice 0 is built and its playtest passed. Arena Proposal A (40 x 32 m) and a Pulse range
 of 14 m are approved. Proposal B (keep 40 x 28, move room N west) was rejected. Pulse range playtest passed.
 Slice 1a is built and deployed. Its playtest found that camping just left of the start held cores A and B; fixed
-by range (R6): `pulseRange` is now 10.5 m. The feel of the 10.5 m range is NOT yet playtested. Slice 1b is not started.
+by range (R6): `pulseRange` is now 10.5 m. Slice 1b is built and deployed, waiting for the owner's playtest of
+endless waves, the hint line, run length and the 10.5 m range feel. Slice 2 is not started.
 
 M1 acceptance: WAIVED. The 5-first-time-player test was not run. Owner
 playtests passed (movement, dash, camera, hero, slice 0). Recorded risk:
@@ -108,6 +109,23 @@ is possible.
   its time and emits its hint once; run log keeps events across ticks in order and survives the end of a run.
 - **Browser check:** play several minutes: waves keep coming and get denser; the one-line hint appears at the
   first ramp step without pausing play.
+
+- **As built (owner-approved decisions):**
+  - Run log: `SimState.log` holds every event with its tick, never cleared, kept after the run ends. `coreDamaged`
+    is merged per core, cause and threat type over 60 ticks (one entry per second) and keeps its cause and enemy
+    type (`threatType`, crawler for now); the amount is the exact sum.
+  - Endless waves (arena only; `?room=test` keeps the finite M1 waves and their win): first spawn 1.5 s, gap
+    between spawns shrinks linearly 3 s to 1 s over 300 s then holds, at most 20 enemies alive. Starting values;
+    slice 8 tunes them. The run only ends by losing until slice 5.
+  - Ramp: table in `src/content/waves.ts`; a step with `at: null` never fires. Only the crawler hint (0:00) is
+    live; the other 5 steps get their times in the slice that builds the mechanic (3, 4, 5/6). The first hint
+    reads "Shoot them (click)" instead of the plan's "Pulse (1)", because tool keys arrive in slice 3. HUD shows the
+    hint for 6 s without pausing play; elapsed time replaces "wave n / 3" in endless mode.
+  - Measured on the 10.5 m build (scratch bots, nothing committed): an idle hero (never moves or shoots) is
+    destroyed after 11 to 31 s (median 15 s), by the 25% hero chasers. A camper at (-12, 0) that shoots the nearest
+    enemy within range and never moves loses all 3 cores in 34 to 55 s over 10 seeds (0 cores alive at 3, 5 and 8
+    minutes in 10 of 10 seeds). Camping the old A+B spot no longer works. Run length for real play is unmeasured:
+    slice 2 (spread and alarms) and slice 8 (balance) tune it.
 
 ### Slice 2: damage spread and real alarms (triage)
 - **Files:** `src/sim/cores.ts`, `src/content/arena.ts` (core links), `src/tuning/tuning.ts` (spread rate,
