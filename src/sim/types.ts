@@ -73,6 +73,10 @@ export interface CoreState {
   integrity: number;
   /** Reached 0: offline for the rest of the run, takes no more damage. */
   lost: boolean;
+  /** True when the next damage starts a new attack (raises an alarm). Cleared by the alarm, set again after a quiet spell. */
+  alarmArmed: boolean;
+  /** Seconds since this core last took damage. */
+  quiet: number;
 }
 
 export interface WaveProgress {
@@ -107,7 +111,9 @@ export type SimEvent =
   /** A core below spreadThreshold leaking into a linked core (`fromCoreId` is the weak one). */
   | { type: 'coreDamaged'; coreId: CoreId; amount: number; cause: 'spread'; fromCoreId: CoreId }
   | { type: 'coreLost'; coreId: CoreId }
-  | { type: 'allCoresLost' };
+  | { type: 'allCoresLost' }
+  /** A core started taking damage (threat or spread). `isFalse` is always false until slice 4. */
+  | { type: 'alarm'; coreId: CoreId; isFalse: false };
 
 /** One entry of the persistent run log: the event and the tick it happened on. */
 export interface LoggedEvent {

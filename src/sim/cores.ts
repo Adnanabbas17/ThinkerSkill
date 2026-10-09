@@ -5,9 +5,29 @@ import { SIM_DT } from './fixedStep';
 import type { CoreState, SimState, ThreatType } from './types';
 
 export const CORE_MAX_INTEGRITY = 100;
+/** `quiet` of a core that has not been damaged yet (a plain number keeps the state JSON-safe). */
+export const NEVER_DAMAGED = 999;
 
 export function createCores(room: Room): CoreState[] {
-  return room.cores.map((c) => ({ id: c.id, integrity: CORE_MAX_INTEGRITY, lost: false }));
+  return room.cores.map((c) => ({ id: c.id, integrity: CORE_MAX_INTEGRITY, lost: false, alarmArmed: true, quiet: NEVER_DAMAGED }));
+}
+
+/**
+ * An alarm fires when a core goes from not damaged to damaged (threat or spread). After it fires
+ * the core stays quiet until alarmRearmSeconds pass without any damage; damage in between keeps
+ * resetting that wait, so a long attack raises one alarm, not a stream.
+ */
+function stepAlarm(s: SimState, t: Tuning, core: CoreState, damaged: boolean): void {
+  if (damaged) {
+    if (core.alarmArmed) {
+      core.alarmArmed = false;
+      s.events.push({ type: 'alarm', coreId: core.id, isFalse: false });
+    }
+    core.quiet = 0;
+    return;
+  }
+  core.quiet = Math.min(NEVER_DAMAGED, core.quiet + SIM_DT);
+  if (core.quiet + 1e-9 >= t.alarmRearmSeconds) core.alarmArmed = true;
 }
 
 function markIfLost(s: SimState, core: CoreState): void {
@@ -51,6 +71,7 @@ function spreadDamage(s: SimState, t: Tuning, room: Room): void {
  */
 export function stepCores(s: SimState, t: Tuning, room: Room): void {
   if (s.status !== 'playing' || room.cores.length === 0) return;
+  const before = s.cores.map((c) => ({ integrity: c.integrity, lost: c.lost }));
   room.cores.forEach((def, i) => {
     const core = s.cores[i];
     if (core.lost) return;
@@ -71,6 +92,9 @@ export function stepCores(s: SimState, t: Tuning, room: Room): void {
     markIfLost(s, core);
   });
   spreadDamage(s, t, room);
+  s.cores.forEach((core, i) => {
+    if (!before[i].lost) stepAlarm(s, t, core, core.integrity < before[i].integrity - 1e-12);
+  });
   if (s.cores.every((c) => c.lost)) {
     s.status = 'lost';
     s.lostReason = 'coresLost';

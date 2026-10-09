@@ -253,3 +253,84 @@ describe('damage spread', () => {
     expect(play()).toBe(play());
   });
 });
+
+describe('alarms', () => {
+  const room = { ...roomWith(threeCores), coreLinks: [['A', 'B'], ['B', 'C'], ['A', 'C']] as [CoreId, CoreId][] };
+  const noSpread = { ...t, spreadPerSec: 0 };
+  const alarms = (events: SimEvent[]) => events.filter((e) => e.type === 'alarm');
+  /** Attack core `i` for `seconds`, then remove every enemy. */
+  const attack = (s: SimState, i: number, seconds: number, tuning = noSpread) => {
+    spawnEnemy(s, touching(threeCores[i]), tuning);
+    const ev = run(s, Math.round(seconds * 60), tuning, room);
+    s.enemies = [];
+    return ev;
+  };
+
+  it('fires once when an attack starts, not every tick, and carries the core and isFalse false', () => {
+    const s = createSim(room, 1);
+    const ev = attack(s, 1, 10);
+    expect(ev.filter((e) => e.type === 'coreDamaged').length).toBeGreaterThan(100); // damaged on every tick
+    expect(alarms(ev)).toEqual([{ type: 'alarm', coreId: 'B', isFalse: false }]);
+  });
+
+  it('is silent before any damage, and in a room without cores', () => {
+    const s = createSim(room, 1);
+    expect(alarms(run(s, 600, noSpread, room))).toEqual([]);
+    const none = emptyRoom();
+    const n = createSim(none, 1);
+    spawnEnemy(n, { x: 0, y: 3 }, t);
+    expect(alarms(run(n, 600, t, none))).toEqual([]);
+  });
+
+  it('re-arms only after alarmRearmSeconds without damage', () => {
+    const s = createSim(room, 1);
+    expect(alarms(attack(s, 0, 1))).toHaveLength(1);
+    run(s, 4 * 60, noSpread, room); // 4 s quiet: still not re-armed
+    expect(alarms(attack(s, 0, 1))).toHaveLength(0);
+    run(s, 5 * 60, noSpread, room); // 5 s quiet: re-armed
+    expect(alarms(attack(s, 0, 1))).toHaveLength(1);
+  });
+
+  it('damage inside the quiet spell restarts the wait', () => {
+    const s = createSim(room, 1);
+    attack(s, 0, 0.5);
+    for (let k = 0; k < 4; k++) {
+      run(s, 3 * 60, noSpread, room);
+      expect(alarms(attack(s, 0, 0.1))).toHaveLength(0); // 3 s apart: never quiet for 5 s
+    }
+  });
+
+  it('each core has its own alarm', () => {
+    const s = createSim(room, 1);
+    expect(alarms(attack(s, 0, 1)).map((e) => (e as { coreId: string }).coreId)).toEqual(['A']);
+    expect(alarms(attack(s, 2, 1)).map((e) => (e as { coreId: string }).coreId)).toEqual(['C']);
+    expect(alarms(attack(s, 0, 1))).toHaveLength(0); // A is still in its quiet spell
+  });
+
+  it('spread damage raises an alarm on the core it hits', () => {
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 40;
+    const ev = run(s, 120, { ...t, spreadPerSec: 2 }, room);
+    expect(alarms(ev).map((e) => (e as { coreId: string }).coreId).sort()).toEqual(['B', 'C']); // A itself is not damaged
+  });
+
+  it('a core destroyed in one go still raises its alarm, and the alarm is logged with its tick', () => {
+    const s = createSim(room, 1);
+    const fast = { ...noSpread, coreDamagePerSec: 6000 };
+    spawnEnemy(s, touching(threeCores[0]), fast);
+    run(s, 3, fast, room);
+    expect(s.cores[0].lost).toBe(true);
+    const logged = s.log.filter((l) => l.event.type === 'alarm');
+    expect(logged).toHaveLength(1);
+    expect(logged[0].event).toEqual({ type: 'alarm', coreId: 'A', isFalse: false });
+    expect(logged[0].tick).toBe(0);
+  });
+
+  it('alarmRearmSeconds is live-tunable', () => {
+    const s = createSim(room, 1);
+    const quick = { ...noSpread, alarmRearmSeconds: 1 };
+    expect(alarms(attack(s, 0, 1, quick))).toHaveLength(1);
+    run(s, 60, quick, room);
+    expect(alarms(attack(s, 0, 1, quick))).toHaveLength(1);
+  });
+});
