@@ -38,6 +38,8 @@ export const defaultTuning = {
   chasePlayerShare: 0.25,
   // Core
   coreDamagePerSec: 4,
+  spreadThreshold: 50,
+  spreadPerSec: 2,
   // Hurt
   playerHp: 5,
   contactDamage: 1,
@@ -75,6 +77,8 @@ export const tuningSpecs: (TuningSpec & { key: TuningKey })[] = [
   { key: 'enemySpawnTime', group: 'Enemy', label: 'spawn warning (s)', min: 0, max: 2, step: 0.05 },
   { key: 'chasePlayerShare', group: 'Enemy', label: 'share chasing hero', min: 0, max: 1, step: 0.05 },
   { key: 'coreDamagePerSec', group: 'Core', label: 'damage per enemy (/s)', min: 0, max: 20, step: 0.5 },
+  { key: 'spreadThreshold', group: 'Core', label: 'spread below integrity', min: 0, max: 100, step: 5 },
+  { key: 'spreadPerSec', group: 'Core', label: 'spread damage (/s)', min: 0, max: 10, step: 0.5 },
   { key: 'playerHp', group: 'Hurt', label: 'player hp', min: 1, max: 20, step: 1 },
   { key: 'contactDamage', group: 'Hurt', label: 'contact damage', min: 0, max: 5, step: 0.5 },
   { key: 'hurtInvuln', group: 'Hurt', label: 'invulnerable (s)', min: 0, max: 3, step: 0.05 },

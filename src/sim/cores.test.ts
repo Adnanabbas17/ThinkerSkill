@@ -121,3 +121,135 @@ describe('cores', () => {
     expect(s.lostReason).toBe('destroyed');
   });
 });
+
+describe('damage spread', () => {
+  const linked = (cores: CoreDef[], links: [CoreId, CoreId][]) => ({ ...roomWith(cores), coreLinks: links });
+  const allPairs: [CoreId, CoreId][] = [['A', 'B'], ['B', 'C'], ['A', 'C']];
+  const room = linked(threeCores, allPairs);
+  const spreadOnly = { ...t, spreadThreshold: 50, spreadPerSec: 2 };
+  const integrities = (s: SimState) => s.cores.map((c) => c.integrity);
+  const spreadEvents = (events: SimEvent[]) =>
+    events.filter(
+      (e): e is Extract<SimEvent, { type: 'coreDamaged'; cause: 'spread' }> => e.type === 'coreDamaged' && e.cause === 'spread',
+    );
+
+  it('does not start at or above the threshold, only strictly below it', () => {
+    for (const a of [100, 50]) {
+      const s = createSim(room, 1);
+      s.cores[0].integrity = a;
+      expect(spreadEvents(run(s, 120, spreadOnly, room))).toEqual([]);
+      expect(integrities(s)).toEqual([a, 100, 100]);
+    }
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 49.9;
+    expect(spreadEvents(run(s, 1, spreadOnly, room)).length).toBeGreaterThan(0);
+  });
+
+  it('a weak core leaks spreadPerSec per second into its online links, split equally', () => {
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 40;
+    const events = run(s, 60, spreadOnly, room);
+    expect(s.cores[1].integrity).toBeCloseTo(100 - 1, 6); // 2 per second split over B and C
+    expect(s.cores[2].integrity).toBeCloseTo(100 - 1, 6);
+    expect(s.cores[0].integrity).toBe(40); // the leaking core loses nothing extra
+    const ev = spreadEvents(events);
+    expect(ev.every((e) => e.fromCoreId === 'A' && (e.coreId === 'B' || e.coreId === 'C'))).toBe(true);
+    expect(ev.reduce((sum, e) => sum + e.amount, 0)).toBeCloseTo(2, 6);
+  });
+
+  it('only leaks into linked cores', () => {
+    const chain = linked(threeCores, [['A', 'B']]);
+    const s = createSim(chain, 1);
+    s.cores[0].integrity = 40;
+    run(s, 60, spreadOnly, chain);
+    expect(s.cores[1].integrity).toBeCloseTo(98, 6); // all of A's 2 per second goes to B
+    expect(s.cores[2].integrity).toBe(100);
+  });
+
+  it('a lost core leaks nothing and receives nothing', () => {
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 0;
+    s.cores[0].lost = true;
+    s.cores[1].integrity = 30;
+    run(s, 60, spreadOnly, room);
+    expect(s.cores[0]).toMatchObject({ integrity: 0, lost: true });
+    expect(s.cores[2].integrity).toBeCloseTo(98, 6); // B's whole leak goes to C, none to the lost A
+    expect(s.cores[1].integrity).toBe(30);
+  });
+
+  it('two leaking cores add up on a shared target', () => {
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 40;
+    s.cores[1].integrity = 40;
+    run(s, 60, spreadOnly, room);
+    expect(s.cores[2].integrity).toBeCloseTo(100 - 1 - 1, 6); // 1 from A, 1 from B
+  });
+
+  it('stops when the weak core is back above the threshold (integrity set directly: there is no repair)', () => {
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 40;
+    run(s, 30, spreadOnly, room);
+    const after = integrities(s);
+    s.cores[0].integrity = 60;
+    expect(spreadEvents(run(s, 60, spreadOnly, room))).toEqual([]);
+    expect(integrities(s).slice(1)).toEqual(after.slice(1));
+  });
+
+  it('can take a linked core to 0: it is lost, with an event, and the run is lost once all are', () => {
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 40;
+    s.cores[1].integrity = 0.01;
+    s.cores[2].integrity = 0.01;
+    const events = run(s, 5, spreadOnly, room);
+    expect(s.cores[1]).toMatchObject({ integrity: 0, lost: true });
+    expect(s.cores[2]).toMatchObject({ integrity: 0, lost: true });
+    expect(events.filter((e) => e.type === 'coreLost').map((e) => (e as { coreId: string }).coreId).sort()).toEqual(['B', 'C']);
+    expect(s.status).toBe('playing'); // A is still online at 40
+    s.cores[0].integrity = 0.001;
+    s.cores[0].lost = false;
+    run(s, 2, spreadOnly, room);
+    expect(s.status).toBe('playing');
+    s.cores[0].integrity = 0;
+    s.cores[0].lost = true;
+    run(s, 1, spreadOnly, room);
+    expect(s.status).toBe('lost');
+    expect(s.lostReason).toBe('coresLost');
+  });
+
+  it('spread damage is logged with cause "spread", merged per second per source core', () => {
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 40;
+    run(s, 120, spreadOnly, room);
+    const entries = s.log.filter((l) => l.event.type === 'coreDamaged');
+    expect(entries.length).toBe(4); // B and C, two seconds each
+    for (const l of entries) expect(l.event).toMatchObject({ cause: 'spread', fromCoreId: 'A' });
+    expect(entries.reduce((sum, l) => sum + (l.event as { amount: number }).amount, 0)).toBeCloseTo(4, 6);
+  });
+
+  it('threat damage and spread add up; spreadPerSec 0 turns spread off; rooms without links never spread', () => {
+    const s = createSim(room, 1);
+    s.cores[0].integrity = 40;
+    run(s, 60, { ...spreadOnly, spreadPerSec: 0 }, room);
+    expect(integrities(s)).toEqual([40, 100, 100]);
+    const none = createSim(roomWith(threeCores), 1);
+    none.cores[0].integrity = 40;
+    run(none, 60, spreadOnly, roomWith(threeCores));
+    expect(integrities(none)).toEqual([40, 100, 100]);
+    const both = createSim(room, 1);
+    both.cores[0].integrity = 100;
+    spawnEnemy(both, touching(threeCores[0]), { ...spreadOnly, coreDamagePerSec: 20 });
+    run(both, 4 * 60, { ...spreadOnly, coreDamagePerSec: 20 }, room); // A: 100 -> 20, leaks once below 50
+    expect(both.cores[0].integrity).toBeLessThan(50);
+    expect(both.cores[1].integrity).toBeLessThan(100);
+  });
+
+  it('is deterministic', () => {
+    const play = () => {
+      const s = createSim(room, 9);
+      s.cores[0].integrity = 45;
+      run(s, 300, spreadOnly, room);
+      return JSON.stringify(s);
+    };
+    expect(play()).toBe(play());
+  });
+});

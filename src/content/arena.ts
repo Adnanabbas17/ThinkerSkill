@@ -3,6 +3,7 @@
 
 import { testRoom, type Box, type CoreDef, type Room } from './testRoom';
 
+import type { CoreId } from './testRoom';
 export type { CoreDef, CoreId } from './testRoom';
 export type SourceRoomId = 'N' | 'S' | 'W' | 'E';
 
@@ -72,6 +73,13 @@ function solids(): { kind: SolidKind; box: Box }[] {
   ];
 }
 
+// All three pairs are linked: a weak core leaks into both others, split equally among those still online.
+const coreLinks: [CoreId, CoreId][] = [
+  ['A', 'B'],
+  ['B', 'C'],
+  ['A', 'C'],
+];
+
 export const arena: Arena = {
   kind: 'arena',
   minX: -20,
@@ -93,6 +101,7 @@ export const arena: Arena = {
     { x: 8, y: 14 },
   ],
   cores,
+  coreLinks,
   sourceRooms,
   covers,
   console: consoleBox,

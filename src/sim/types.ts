@@ -104,6 +104,8 @@ export type SimEvent =
   | { type: 'hint'; step: RampUnlock }
   /** Integrity removed from a core this tick (one event per damaged core per tick). */
   | { type: 'coreDamaged'; coreId: CoreId; amount: number; cause: 'threat'; threatType: ThreatType }
+  /** A core below spreadThreshold leaking into a linked core (`fromCoreId` is the weak one). */
+  | { type: 'coreDamaged'; coreId: CoreId; amount: number; cause: 'spread'; fromCoreId: CoreId }
   | { type: 'coreLost'; coreId: CoreId }
   | { type: 'allCoresLost' };
 

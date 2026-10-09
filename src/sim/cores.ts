@@ -1,4 +1,4 @@
-import type { Room } from '../content/testRoom';
+import type { CoreId, Room } from '../content/testRoom';
 import type { Tuning } from '../tuning/tuning';
 import { touchingBox } from './enemies';
 import { SIM_DT } from './fixedStep';
@@ -8,6 +8,40 @@ export const CORE_MAX_INTEGRITY = 100;
 
 export function createCores(room: Room): CoreState[] {
   return room.cores.map((c) => ({ id: c.id, integrity: CORE_MAX_INTEGRITY, lost: false }));
+}
+
+function markIfLost(s: SimState, core: CoreState): void {
+  if (core.lost || core.integrity > 1e-9) return;
+  core.integrity = 0;
+  core.lost = true;
+  s.events.push({ type: 'coreLost', coreId: core.id });
+}
+
+/**
+ * A core below spreadThreshold (and not lost) leaks spreadPerSec per second into its linked cores
+ * that are still online, split equally. The leaking core loses nothing extra; a lost core leaks
+ * nothing. Which cores leak is decided once per tick, after threat damage, so order never matters.
+ */
+function spreadDamage(s: SimState, t: Tuning, room: Room): void {
+  if (room.coreLinks.length === 0 || t.spreadPerSec <= 0) return;
+  const index = (id: CoreId) => room.cores.findIndex((c) => c.id === id);
+  const leaking = s.cores.filter((c) => !c.lost && c.integrity < t.spreadThreshold);
+  const onlineAtStart = new Set(s.cores.filter((c) => !c.lost).map((c) => c.id));
+  for (const from of leaking) {
+    const targets = room.coreLinks
+      .flatMap(([a, b]) => (a === from.id ? [b] : b === from.id ? [a] : []))
+      .filter((id) => onlineAtStart.has(id) && index(id) >= 0);
+    if (targets.length === 0) continue;
+    const share = (t.spreadPerSec * SIM_DT) / targets.length;
+    for (const id of targets) {
+      const target = s.cores[index(id)];
+      const amount = Math.min(target.integrity, share);
+      if (amount <= 0) continue;
+      target.integrity -= amount;
+      s.events.push({ type: 'coreDamaged', coreId: id, amount, cause: 'spread', fromCoreId: from.id });
+      markIfLost(s, target);
+    }
+  }
 }
 
 /**
@@ -34,12 +68,9 @@ export function stepCores(s: SimState, t: Tuning, room: Room): void {
       const share = (n * t.coreDamagePerSec * SIM_DT * amount) / want;
       s.events.push({ type: 'coreDamaged', coreId: core.id, amount: share, cause: 'threat', threatType });
     }
-    if (core.integrity <= 1e-9) {
-      core.integrity = 0;
-      core.lost = true;
-      s.events.push({ type: 'coreLost', coreId: core.id });
-    }
+    markIfLost(s, core);
   });
+  spreadDamage(s, t, room);
   if (s.cores.every((c) => c.lost)) {
     s.status = 'lost';
     s.lostReason = 'coresLost';

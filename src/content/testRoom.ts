@@ -32,6 +32,8 @@ export interface Room {
   spawnPoints: { x: number; y: number }[];
   /** Reactor cores to defend. None in the test room, so it can never be lost by cores. */
   cores: CoreDef[];
+  /** Pairs of cores that leak damage into each other (see spreadThreshold). None in the test room. */
+  coreLinks: [CoreId, CoreId][];
 }
 
 export const testRoom: Room = {
@@ -67,4 +69,5 @@ export const testRoom: Room = {
     { x: 13, y: 8 },
   ],
   cores: [],
+  coreLinks: [],
 };
