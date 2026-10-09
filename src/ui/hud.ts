@@ -16,6 +16,9 @@ export interface Hud {
   frame(nowMs: number, dtMs: number): void;
 }
 
+const ALARM_LINE_SECONDS = 5;
+const MAX_ALARM_LINES = 3;
+
 /** One row per core: label, bar, value. */
 function buildCoreRows(doc: Document, parent: HTMLElement, ids: string[]) {
   parent.replaceChildren();
@@ -50,6 +53,9 @@ export function createHud(doc: Document): Hud {
   const coresEl = doc.getElementById('hud-cores')!;
   const hintEl = doc.getElementById('hud-hint')!;
   let hintUntil = 0;
+  const alarmsEl = doc.getElementById('hud-alarms')!;
+  let alarmsSeen = 0; // how much of state.log has been checked for alarms
+  const alarmLines: { el: HTMLElement; until: number }[] = [];
   let coreRows: { row: HTMLElement; fill: HTMLElement; value: HTMLElement }[] = [];
   const stats = new FrameStats();
   let lastText = -1;
@@ -60,6 +66,22 @@ export function createHud(doc: Document): Hud {
       backendEl.textContent = name;
     },
     game(state, tuning, tryNumber) {
+      // Alarm feed: new alarm entries in the run log. A shorter log means a new run started.
+      if (state.log.length < alarmsSeen) {
+        alarmsSeen = 0;
+        for (const l of alarmLines.splice(0)) l.el.remove();
+      }
+      const now = performance.now();
+      for (; alarmsSeen < state.log.length; alarmsSeen++) {
+        const e = state.log[alarmsSeen].event;
+        if (e.type !== 'alarm') continue;
+        const el = doc.createElement('div');
+        el.className = 'hud-alarm';
+        el.textContent = `Core ${e.coreId} under attack`;
+        alarmsEl.append(el);
+        alarmLines.push({ el, until: now + ALARM_LINE_SECONDS * 1000 });
+        while (alarmLines.length > MAX_ALARM_LINES) alarmLines.shift()!.el.remove();
+      }
       const max = Math.ceil(tuning.playerHp);
       const hp = Math.max(0, Math.ceil(tuning.playerHp - state.player.damage - 1e-9));
       const total = state.waves.length;
@@ -104,6 +126,7 @@ export function createHud(doc: Document): Hud {
       hintUntil = 0;
     },
     frame(nowMs, dtMs) {
+      while (alarmLines.length > 0 && performance.now() >= alarmLines[0].until) alarmLines.shift()!.el.remove();
       if (!hintEl.hidden && nowMs >= hintUntil) hintEl.hidden = true;
       if (dtMs > 0) stats.push(nowMs, dtMs);
       if (nowMs - lastText >= 250) {

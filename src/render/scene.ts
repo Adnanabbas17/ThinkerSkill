@@ -64,6 +64,8 @@ const CONSOLE_HEIGHT = 1;
 const CORE_HEIGHT = 2.4;
 const VENT_SIZE = 1.2;
 const LABEL_SIZE = 1.5;
+/** A core blinks while it is being hit and for this long after the last damage. */
+const CORE_BLINK_SECONDS = 1;
 
 /**
  * Every scene color in one place. Placeholder theme: classic 8-bit platformer
@@ -91,6 +93,7 @@ export const PALETTE = {
   greyConsole: 0x5c5c5c,
   greyCore: 0xd6d6d6,
   greyCoreLost: 0x3c3c3c,
+  greyCoreAlarm: 0xffc46a,
   vent: 0x6e6e6e,
   floorLabel: '#ececec',
   ambient: 0xfff4e0,
@@ -170,6 +173,7 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
   const obstacleMat = matte(PALETTE.obstacle);
   const coreMeshes: Mesh[] = []; // same order as room.cores and state.cores
   const coreLostMat = matte(PALETTE.greyCoreLost);
+  const coreAlarmMat = matte(PALETTE.greyCoreAlarm);
   for (const { kind, box: o } of solidParts(room)) {
     const look = isArena(room) ? arenaLook[kind] : { mat: obstacleMat, height: OBSTACLE_HEIGHT };
     const mesh = box(o.hw * 2, look.height, o.hh * 2, look.mat, o.x, look.height / 2, o.y);
@@ -327,7 +331,12 @@ export async function createView(canvas: HTMLCanvasElement, forceWebGL: boolean,
       return { x: camera.position.x + ray.x * k, y: camera.position.z + ray.z * k };
     },
     draw(state, alpha, frameDt, tuning, events) {
-      for (let i = 0; i < coreMeshes.length; i++) coreMeshes[i].material = state.cores[i]?.lost ? coreLostMat : arenaLook.core.mat;
+      for (let i = 0; i < coreMeshes.length; i++) {
+        const c = state.cores[i];
+        // Blink between the normal and the alarm colour while a core is taking (or just took) damage.
+        const blink = c && !c.lost && c.quiet < CORE_BLINK_SECONDS && Math.floor(state.tick / 8) % 2 === 0;
+        coreMeshes[i].material = c?.lost ? coreLostMat : blink ? coreAlarmMat : arenaLook.core.mat;
+      }
       const p = state.player;
       const px = lerp(p.prevPos.x, p.pos.x, alpha);
       const pz = lerp(p.prevPos.y, p.pos.y, alpha);

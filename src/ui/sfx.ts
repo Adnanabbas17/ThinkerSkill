@@ -138,6 +138,10 @@ export function createSfx(): Sfx {
       tone('sawtooth', 220, 35, 0.9, 0.4);
       hiss(600, 0.8, 0.8);
     },
+    alarm: () => {
+      tone('square', 880, 880, 0.09, 0.2);
+      tone('square', 660, 660, 0.09, 0.2, 0.13);
+    },
     waveStart: () => {
       tone('sine', 440, 440, 0.12, 0.25);
       tone('sine', 660, 660, 0.16, 0.25, 0.14);

@@ -131,3 +131,23 @@ body {
 .hud-hintline[hidden] {
   display: none;
 }
+
+.hud-alarms {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hud-alarm {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(120, 40, 20, 0.85);
+  color: #ffe3c4;
+  font: 600 14px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
