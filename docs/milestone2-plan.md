@@ -4,7 +4,11 @@ Status: **revision 3.** Slice 0 is built and its playtest passed. Arena Proposal
 of 14 m are approved. Proposal B (keep 40 x 28, move room N west) was rejected. Pulse range playtest passed.
 Slice 1a is built and deployed. Its playtest found that camping just left of the start held cores A and B; fixed
 by range (R6): `pulseRange` is now 10.5 m. Slices 1b and 2 are built and deployed, waiting for the owner's playtest (run length, 10.5 m range feel, FPS,
-`?room=test`, spread, alarm feed, beep, blink). No tuning is changed until that playtest. Slice 3 is not started.
+`?room=test`, spread, alarm feed, beep, blink) and of the run control. No tuning is changed until that playtest.
+Slice 3 is not started.
+
+Design change (owner-approved): dash is replaced by run. Hold Space to run at `runSpeedMultiplier` (1.6, live slider)
+times walking speed (11.2 m/s; enemies move at 3.6 m/s). No stamina, no Shift use, dash fully removed.
 
 M1 acceptance: WAIVED. The 5-first-time-player test was not run. Owner
 playtests passed (movement, dash, camera, hero, slice 0). Recorded risk:
@@ -35,7 +39,7 @@ Ground rules for every slice:
 | Enemy targeting (`enemies.ts`) | Every enemy chases the player | Threats target cores (some chase the player), per-type behaviour | 1a, 3 |
 | Enemy state (`types.ts`) | No type, no target | `type`, `disguised`, `revealed`, `targetCoreId` | 1a, 3, 4 |
 | Weapon (`projectiles.ts`) | One gun, `shotDamage` hurts everything | 3 tool modes, energy, damage only with the correct counter | 3 |
-| Input (`keys.ts`, `input.ts`, `TickInput`) | move, aim, dash, fire | Add `tool: 1 \| 2 \| 3` (keys 1/2/3) and `scan` (hold E). Also used to interact with breakers and vents | 3, 4 |
+| Input (`keys.ts`, `input.ts`, `TickInput`) | move, aim, run (hold Space; replaced dash), fire | Add `tool: 1 \| 2 \| 3` (keys 1/2/3) and `scan` (hold E). Also used to interact with breakers and vents | 3, 4 |
 | Waves (`waves.ts`, `testWaves.ts`) | 3 fixed waves; clearing them = **win** | Endless, escalating waves with an onboarding ramp until the source is shut down; win comes from the source, not from waves | 1b, 5 |
 | Win and lose (`sim.ts`, `enemies.ts`) | Lose when hero HP = 0 | Also lose when all 3 cores are lost; win when the source is shut down with at least 1 core online | 1a, 5 |
 | Events (`SimEvent`) | Cleared every tick; no ids, no time, no truth flags | Persistent run log in `SimState` (`log: LoggedEvent[]` with tick), events carry ids and truth flags | 1b onward |
@@ -297,7 +301,9 @@ under the 3 s minimum).
 Measured with the default camera (height 16, back 9, FOV 50, 16:9):
 - **Camera:** At most 1 core on screen from open floor. From inside room S, B and C both show. Never all 3 from
   anywhere.
-- **Walks between cores (7 m/s, no dash):** A-B 3.50 s, A-C 4.55 s, B-C 4.29 s.
+- **Walks between cores (straight line, 7 m/s walking):** A-B 3.50 s, A-C 4.55 s, B-C 4.29 s. With the free, unlimited
+  run (7 x 1.6 = 11.2 m/s) the same trips take 2.19 s, 2.84 s and 2.68 s. The 3 s rule was set for walking; the
+  owner judges the run feel in playtest (`runSpeedMultiplier` is the knob). No layout change.
 - **Pulse:** at the default 10.5 m, no core pair is coverable from any open-floor spot (rule test). See R6.
 - **Gaps:** between solids 3.51 m; solids to outer wall 2.70 m; start clearance 3.70 m; vent clearance 2.00 m.
 - **Reachability:** all vents, terminals and labels connect to the start; each core is approachable from 4 sides.
@@ -411,7 +417,7 @@ The HUD shows what E will do ("E: scan", "E: flip breaker 2") before the hold st
 | `breakerFlipped` | breakerId, on, correct | problem solving |
 | `doorOpened` / `doorClosed` | doorId | timeline |
 | `ventPurged` / `sourceShutdown` | roomId | problem solving |
-| existing: `playerHurt`, `playerDestroyed`, `dash`, `fire` | | timeline (filtered) |
+| existing: `playerHurt`, `playerDestroyed`, `fire` | | timeline (filtered) |
 | `runEnded` | result, reason | header |
 
 "Followed a false alarm" is derived: after a false `alarm`, the hero moved at least 6 m toward that core within 10 s

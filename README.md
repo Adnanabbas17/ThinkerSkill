@@ -9,7 +9,7 @@ A browser 3D top-down action game. You play ThinkerFighter, a response engineer,
 - WASD: move
 - Mouse: aim
 - Left click (hold): fire
-- Shift: dash (in the move direction, or towards the aim when standing still)
+- Space (hold): run, 1.6 times walking speed (live-editable in the tuning panel)
 - R: restart after the run is cleared or lost
 - M: mute or unmute (placeholder sounds)
 - ` (backquote): tuning panel (sliders, reset, copy as JSON; values are saved in this browser)

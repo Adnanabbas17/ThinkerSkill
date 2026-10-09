@@ -14,7 +14,7 @@ Browser 3D top-down action game (twin-stick style). The player is ThinkerFighter
 
 ## v1 scope
 - 1 arena, 1 hero, 3 threat types, 3 tool modes, 3 cores, 1 hidden source per run (position seeded).
-- Controls: WASD move, mouse aim, left click fire, Shift dash, 1/2/3 tool mode, hold E to scan.
+- Controls: WASD move, mouse aim, left click fire, hold Space to run, 1/2/3 tool mode, hold E to scan.
 - Hero is one human character with skeletal animation. Enemies are machines animated in code.
 
 ## Hard constraints
@@ -37,7 +37,7 @@ Browser 3D top-down action game (twin-stick style). The player is ThinkerFighter
 - src/render: draws sim state in 3D with interpolation. Never changes rules.
 - src/ui: HUD, menus, debrief.
 - src/content: arena, threats, and waves as data files.
-- src/tuning: every feel value (speeds, dash, cooldowns, damage, shake) in one config, editable live in a dev panel toggled by a key.
+- src/tuning: every feel value (speeds, run, cooldowns, damage, shake) in one config, editable live in a dev panel toggled by a key.
 
 ## Tests
 - Every sim rule has a unit test.
