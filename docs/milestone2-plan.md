@@ -3,8 +3,8 @@
 Status: **revision 3.** Slice 0 is built and its playtest passed. Arena Proposal A (40 x 32 m) and a Pulse range
 of 14 m are approved. Proposal B (keep 40 x 28, move room N west) was rejected. Pulse range playtest passed.
 Slice 1a is built and deployed. Its playtest found that camping just left of the start held cores A and B; fixed
-by range (R6): `pulseRange` is now 10.5 m. Slice 1b is built and deployed, waiting for the owner's playtest of
-endless waves, the hint line, run length and the 10.5 m range feel. Slice 2 is not started.
+by range (R6): `pulseRange` is now 10.5 m. Slices 1b and 2 are built and deployed, waiting for the owner's playtest (run length, 10.5 m range feel, FPS,
+`?room=test`, spread, alarm feed, beep, blink). No tuning is changed until that playtest. Slice 3 is not started.
 
 M1 acceptance: WAIVED. The 5-first-time-player test was not run. Owner
 playtests passed (movement, dash, camera, hero, slice 0). Recorded risk:
@@ -136,6 +136,20 @@ is possible.
   alarm fires once per attack start, not every tick; alarm carries `coreId` and `isFalse: false`.
 - **Browser check:** leave one core alone until it drops below half; its neighbours start losing integrity
   without any robot on them; the HUD alarm feed shows "Core B under attack".
+
+- **As built (owner-approved decisions):**
+  - Links: all three pairs (A-B, B-C, A-C) in `coreLinks` (data; none in the test room). A core strictly below
+    `spreadThreshold` (50) that is not lost leaks `spreadPerSec` (2) per second into its linked cores still online,
+    split equally; the leaking core loses nothing extra; lost cores leak and receive nothing. Spread can destroy a
+    core and counts toward the lose condition. There is no repair mechanic; the "repaired" case is tested by setting
+    integrity directly. Both values are in `src/tuning` with dev panel entries.
+  - Alarm: fires when a core goes from not damaged to damaged (threat or spread damage), carries `coreId` and
+    `isFalse: false`, and re-arms after `alarmRearmSeconds` (5, tuning) without damage. Logged with its tick.
+  - HUD feed "Core X under attack" (top right, up to 3 lines, 5 s each), two-tone beep, and an amber colour blink of
+    the existing core box while it is damaged and for 1 s after. The feed reads alarms from the run log.
+  - Spread damage is logged with cause `spread` and its source core, merged per second like threat damage.
+  - No existing tuning value or the spawn curve was changed. Spread makes runs shorter than in slice 1b (assumption:
+    not measured); tuning waits for the owner's playtest.
 
 ### Slice 3: three threat types, three tool modes, energy (correct counter)
 - **Files:** `src/content/threats.ts` (new), `src/content/tools.ts` (new), `src/sim/types.ts`, `src/sim/projectiles.ts`
