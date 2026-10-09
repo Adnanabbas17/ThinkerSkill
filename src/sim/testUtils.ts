@@ -2,12 +2,12 @@
 import type { Box, Room } from '../content/testRoom';
 import type { TickInput, Vec2 } from './types';
 
-export const idle = (aim: Vec2 = { x: 0, y: -100 }): TickInput => ({ move: { x: 0, y: 0 }, aim, dash: false, fire: false });
+export const idle = (aim: Vec2 = { x: 0, y: -100 }): TickInput => ({ move: { x: 0, y: 0 }, aim, run: false, fire: false });
 
 export const input = (move: Vec2, opts: Partial<TickInput> = {}): TickInput => ({
   move,
   aim: { x: 0, y: -100 },
-  dash: false,
+  run: false,
   fire: false,
   ...opts,
 });

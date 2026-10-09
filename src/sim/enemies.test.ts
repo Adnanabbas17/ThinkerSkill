@@ -165,7 +165,7 @@ describe('contact damage', () => {
     expect(s.player.damage).toBe(0);
   });
 
-  it('dash invulnerability blocks it', () => {
+  it('invulnerability blocks it', () => {
     const s = touching();
     s.player.invulnTime = 0.2;
     stepSim(s, idle(), t, room);

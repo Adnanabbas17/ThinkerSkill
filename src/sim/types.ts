@@ -13,8 +13,8 @@ export interface TickInput {
   move: Vec2;
   /** Cursor point projected onto the floor plane. */
   aim: Vec2;
-  /** Dash was pressed since the previous tick. */
-  dash: boolean;
+  /** Run (Space) is held this tick: walking speed is multiplied by runSpeedMultiplier. */
+  run: boolean;
   /** Fire is held, or was clicked since the previous tick. */
   fire: boolean;
 }
@@ -25,10 +25,7 @@ export interface PlayerState {
   vel: Vec2;
   /** Unit vector towards the aim point. */
   aimDir: Vec2;
-  dashTime: number;
-  dashCooldown: number;
-  dashDir: Vec2;
-  /** Seconds of invulnerability left (dash or hurt). */
+  /** Seconds of invulnerability left (after a hit). */
   invulnTime: number;
   /** Damage taken. Stored instead of hp so live tuning of max hp applies at once. */
   damage: number;
@@ -94,7 +91,6 @@ export type SimStatus = 'playing' | 'won' | 'lost';
 export type LostReason = 'destroyed' | 'coresLost' | null;
 
 export type SimEvent =
-  | { type: 'dash' }
   | { type: 'fire' }
   | { type: 'shotBlocked'; pos: Vec2 }
   | { type: 'enemySpawn'; pos: Vec2; targetCoreId: CoreId | null }

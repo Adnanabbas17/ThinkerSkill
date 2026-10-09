@@ -27,11 +27,9 @@ import { initialHeroAnim, nextHeroAnim, type HeroClip } from './heroAnim';
 export const HERO_HEIGHT = 1.6;
 /** Run_Gun's planted-foot ground speed in hero heights per second (measured from the clip). */
 const RUN_SPEED_PER_HEIGHT = 2.2;
-/** Crossfade between clips, seconds. Hits and dashes use the faster one so they read at once. */
+/** Crossfade between clips, seconds. Hits use the faster one so they read at once. */
 const FADE = 0.1;
 const FAST_FADE = 0.05;
-/** How quickly the dash lean follows its target, 1/s (about 95 % within 0.1 s). */
-const LEAN_RATE = 30;
 
 const CLIP_NAMES: Record<HeroClip, string> = {
   idle: 'CharacterArmature|Idle',
@@ -109,10 +107,8 @@ export function createHero(model: Object3D, clips: AnimationClip[], look: HeroLo
   model.scale.setScalar(scale);
   model.position.y = -box.min.y * scale;
 
-  const lean = new Group(); // tilts during a dash, pivoting at the feet
-  lean.add(model);
   const object = new Group();
-  object.add(lean);
+  object.add(model);
 
   const runClipSpeed = RUN_SPEED_PER_HEIGHT * HERO_HEIGHT;
   let anim = initialHeroAnim();
@@ -121,7 +117,7 @@ export function createHero(model: Object3D, clips: AnimationClip[], look: HeroLo
 
   return {
     object,
-    update(state, x, z, frameDt, tuning, events) {
+    update(state, x, z, frameDt, _tuning, events) {
       const p = state.player;
       if (state.tick < lastTick) anim = initialHeroAnim(); // R started a new run
       lastTick = state.tick;
@@ -129,19 +125,17 @@ export function createHero(model: Object3D, clips: AnimationClip[], look: HeroLo
         anim,
         {
           lost: state.status === 'lost',
-          dashing: p.dashTime > 0,
           hurt: events.some((e) => e.type === 'playerHurt'),
           vel: p.vel,
           aim: p.aimDir,
           runClipSpeed,
-          moveSpeed: tuning.moveSpeed,
         },
         frameDt,
       );
 
       const next = actions[anim.clip];
       if (next !== current) {
-        const fade = anim.clip === 'hit' || p.dashTime > 0 ? FAST_FADE : FADE;
+        const fade = anim.clip === 'hit' ? FAST_FADE : FADE;
         current.fadeOut(fade);
         next.reset().fadeIn(fade).play();
         current = next;
@@ -154,9 +148,6 @@ export function createHero(model: Object3D, clips: AnimationClip[], look: HeroLo
       // Exactly the interpolated sim position (no root motion), whole body facing the aim.
       object.position.set(x, 0, z);
       object.rotation.y = Math.atan2(p.aimDir.x, p.aimDir.y);
-      const k = 1 - Math.exp(-LEAN_RATE * frameDt);
-      lean.rotation.x += (anim.pitch - lean.rotation.x) * k;
-      lean.rotation.z += (anim.roll - lean.rotation.z) * k;
     },
   };
 }

@@ -17,7 +17,7 @@ function recordInputs(seed: number, ticks: number): TickInput[] {
     inputs.push({
       move: { x: move.x / l, y: move.y / l },
       aim: { x: rng.next() * 30 - 15, y: rng.next() * 20 - 10 },
-      dash: rng.next() < 0.03,
+      run: rng.next() < 0.3,
       fire: rng.next() < 0.5,
     });
   }

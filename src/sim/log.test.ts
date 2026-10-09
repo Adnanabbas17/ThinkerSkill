@@ -14,9 +14,9 @@ const dmg = (coreId: 'A' | 'B', amount: number, threatType: 'crawler' = 'crawler
 describe('run log (appendToLog)', () => {
   it('keeps events in order with their tick', () => {
     const log: LoggedEvent[] = [];
-    appendToLog(log, 3, [{ type: 'fire' }, { type: 'dash' }]);
+    appendToLog(log, 3, [{ type: 'fire' }, { type: 'enemyHit', pos: { x: 0, y: 0 } }]);
     appendToLog(log, 4, [{ type: 'waveStart', wave: 0 }]);
-    expect(log.map((l) => [l.tick, l.event.type])).toEqual([[3, 'fire'], [3, 'dash'], [4, 'waveStart']]);
+    expect(log.map((l) => [l.tick, l.event.type])).toEqual([[3, 'fire'], [3, 'enemyHit'], [4, 'waveStart']]);
   });
 
   it('merges coreDamaged per core within a second, keeping cause and threat type', () => {

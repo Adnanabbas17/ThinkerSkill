@@ -7,12 +7,10 @@ const UP = { x: 0, y: -1 }; // facing up the screen
 
 const input = (over: Partial<HeroAnimInput> = {}): HeroAnimInput => ({
   lost: false,
-  dashing: false,
   hurt: false,
   vel: { x: 0, y: 0 },
   aim: UP,
   runClipSpeed: RUN_CLIP_SPEED,
-  moveSpeed: 7,
   ...over,
 });
 
@@ -63,30 +61,18 @@ describe('hero animation: idle and run', () => {
   });
 });
 
-describe('hero animation: dash', () => {
-  it('plays the run faster and leans towards the dash direction', () => {
-    const a = frames(1, input({ dashing: true, vel: { x: 0, y: -20 } }));
-    expect(a.clip).toBe('run');
-    expect(a.rate).toBeCloseTo((7 / RUN_CLIP_SPEED) * HERO_ANIM.dashRate);
-    expect(a.pitch).toBeCloseTo(HERO_ANIM.dashLean);
-    expect(a.roll).toBeCloseTo(0);
+describe('hero animation: running fast', () => {
+  it('plays the run clip faster as speed grows, up to the playback limit', () => {
+    const walk = frames(1, input({ vel: { x: 0, y: -7 } }));
+    const fast = frames(1, input({ vel: { x: 0, y: -11.2 } }));
+    expect(fast.clip).toBe('run');
+    expect(fast.rate).toBeGreaterThan(walk.rate);
+    expect(fast.rate).toBeCloseTo(Math.min(HERO_ANIM.maxRunRate, 11.2 / RUN_CLIP_SPEED));
+    expect(frames(1, input({ vel: { x: 0, y: -40 } })).rate).toBe(HERO_ANIM.maxRunRate);
   });
 
-  it('leans sideways for a sideways dash: right of a hero facing up the screen is screen right', () => {
-    expect(frames(1, input({ dashing: true, vel: { x: 20, y: 0 } })).roll).toBeCloseTo(HERO_ANIM.dashLean);
-    expect(frames(1, input({ dashing: true, vel: { x: -20, y: 0 } })).roll).toBeCloseTo(-HERO_ANIM.dashLean);
-  });
-
-  it('leans back and plays the run backwards for a dash against the facing', () => {
-    const a = frames(1, input({ dashing: true, vel: { x: 0, y: 20 } }));
-    expect(a.pitch).toBeCloseTo(-HERO_ANIM.dashLean);
-    expect(a.rate).toBeLessThan(0);
-  });
-
-  it('has no lean outside a dash', () => {
-    const a = frames(1, input({ vel: { x: 0, y: -7 } }));
-    expect(a.pitch).toBe(0);
-    expect(a.roll).toBe(0);
+  it('plays the run backwards for fast movement against the facing', () => {
+    expect(frames(1, input({ vel: { x: 0, y: 11.2 } })).rate).toBeLessThan(0);
   });
 });
 
@@ -102,18 +88,10 @@ describe('hero animation: hit and death', () => {
     expect(frames(2, moving, during).clip).toBe('run');
   });
 
-  it('a dash overrides and cancels the hit reaction', () => {
-    const hit = frames(1, input({ hurt: true }));
-    const dash = frames(1, input({ dashing: true, vel: { x: 0, y: -20 } }), hit);
-    expect(dash.clip).toBe('run');
-    expect(frames(1, input(), dash).clip).toBe('idle');
-  });
-
   it('plays death once when lost, holds it, and overrides everything else', () => {
-    const first = frames(1, input({ lost: true, dashing: true, hurt: true, vel: { x: 0, y: -20 } }));
+    const first = frames(1, input({ lost: true, hurt: true, vel: { x: 0, y: -11.2 } }));
     expect(first.clip).toBe('death');
     expect(first.restart).toBe(true);
-    expect(first.pitch).toBe(0);
     const later = frames(30, input({ lost: true }), first);
     expect(later.clip).toBe('death');
     expect(later.restart).toBe(false);

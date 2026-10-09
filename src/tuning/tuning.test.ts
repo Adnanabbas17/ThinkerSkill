@@ -12,9 +12,10 @@ describe('tuning', () => {
   });
 
   it('sanitizes saved values: clamps, ignores unknown and non-numeric', () => {
-    const t = sanitizeTuning({ moveSpeed: 999, dashSpeed: 'fast', bogus: 1, camFov: 60 });
+    const t = sanitizeTuning({ moveSpeed: 999, runSpeedMultiplier: 'fast', dashSpeed: 20, bogus: 1, camFov: 60 });
     expect(t.moveSpeed).toBe(15);
-    expect(t.dashSpeed).toBe(defaultTuning.dashSpeed);
+    expect(t.runSpeedMultiplier).toBe(defaultTuning.runSpeedMultiplier);
+    expect('dashSpeed' in t).toBe(false); // old saved dash values are dropped
     expect(t.camFov).toBe(60);
     expect('bogus' in t).toBe(false);
     expect(sanitizeTuning(null)).toEqual(defaultTuning);

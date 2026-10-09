@@ -52,47 +52,67 @@ describe('movement', () => {
   });
 });
 
-describe('dash', () => {
-  it('moves dashSpeed * dashDuration in the move direction and emits an event', () => {
-    const s = createSim(room, 1);
-    stepSim(s, input({ x: 1, y: 0 }, { dash: true }), t, room);
-    expect(s.events).toEqual([{ type: 'dash' }]);
-    run(Math.ceil(t.dashDuration / SIM_DT) - 1, input({ x: 0, y: 0 }), s);
-    expect(s.player.pos.x).toBeCloseTo(t.dashSpeed * t.dashDuration, 0);
-    expect(s.player.pos.y).toBe(0);
+describe('run', () => {
+  const walk = input({ x: 1, y: 0 });
+  const running = input({ x: 1, y: 0 }, { run: true });
+
+  it('holding run accelerates to moveSpeed * runSpeedMultiplier (11.2 m/s by default)', () => {
+    expect(t.runSpeedMultiplier).toBe(1.6);
+    const s = run(60, running);
+    expect(s.player.vel.x).toBeCloseTo(t.moveSpeed * t.runSpeedMultiplier);
+    expect(s.player.vel.x).toBeCloseTo(11.2);
   });
 
-  it('dashes towards the aim when no move key is held', () => {
+  it('releasing run returns to normal speed, and pressing it again speeds up again', () => {
     const s = createSim(room, 1);
-    stepSim(s, idle({ x: 0, y: 10 }), t, room);
-    stepSim(s, idle({ x: 0, y: 10 }), t, room);
-    stepSim(s, { ...idle({ x: 0, y: 10 }), dash: true }, t, room);
-    expect(s.player.dashDir).toEqual({ x: 0, y: 1 });
-    expect(s.player.vel.y).toBeCloseTo(t.dashSpeed);
+    s.player.pos = { x: -14, y: 0 }; // room to run without reaching the wall
+    run(60, running, s);
+    run(30, walk, s);
+    expect(s.player.vel.x).toBeCloseTo(t.moveSpeed);
+    run(30, running, s);
+    expect(s.player.vel.x).toBeCloseTo(t.moveSpeed * t.runSpeedMultiplier);
   });
 
-  it('cannot dash again until the cooldown ends', () => {
+  it('run does nothing without a movement key', () => {
+    const s = run(60, { ...idle(), run: true });
+    expect(s.player.vel).toEqual({ x: 0, y: 0 });
+    expect(s.player.pos).toEqual({ x: 0, y: 0 });
+  });
+
+  it('a diagonal is still normalised: running diagonally is not faster than running straight', () => {
+    const s = run(60, input({ x: 1, y: 1 }, { run: true }));
+    expect(len(s.player.vel)).toBeCloseTo(t.moveSpeed * t.runSpeedMultiplier);
+  });
+
+  it('runSpeedMultiplier is live: 1 means no boost, 2 doubles the speed', () => {
+    expect(run(60, running, createSim(room, 1), { ...t, runSpeedMultiplier: 1 }).player.vel.x).toBeCloseTo(t.moveSpeed);
+    expect(run(60, running, createSim(room, 1), { ...t, runSpeedMultiplier: 2 }).player.vel.x).toBeCloseTo(t.moveSpeed * 2);
+  });
+
+  it('covers more ground in the same time than walking', () => {
+    const from = (inp: typeof walk) => {
+      const s = createSim(room, 1);
+      s.player.pos = { x: -14, y: 0 };
+      return run(45, inp, s).player.pos.x + 14;
+    };
+    expect(from(running) / from(walk)).toBeGreaterThan(1.4);
+  });
+
+  it('does not change aiming or firing, and emits no dash event', () => {
     const s = createSim(room, 1);
-    const dash = input({ x: 1, y: 0 }, { dash: true });
-    stepSim(s, dash, t, room);
-    const cooldownTicks = Math.round(t.dashCooldown / SIM_DT);
-    for (let i = 1; i < cooldownTicks; i++) {
-      stepSim(s, dash, t, room);
-      expect(s.events).toEqual([]);
+    const events: string[] = [];
+    for (let i = 0; i < 30; i++) {
+      stepSim(s, input({ x: 0, y: 1 }, { run: true, fire: true, aim: { x: 1000, y: 0 } }), t, room);
+      events.push(...s.events.map((e) => e.type));
     }
-    stepSim(s, dash, t, room);
-    expect(s.events).toEqual([{ type: 'dash' }]);
+    expect(s.player.aimDir.x).toBeCloseTo(1, 1);
+    expect(events.filter((e) => e === 'fire').length).toBeGreaterThan(0);
+    expect(events).not.toContain('dash');
+    expect(s.shots[0].dir.x).toBeGreaterThan(0.9);
   });
 
-  it('gives no invulnerability with dashInvuln = 0 (default)', () => {
-    const s = createSim(room, 1);
-    stepSim(s, input({ x: 1, y: 0 }, { dash: true }), t, room);
-    expect(s.player.invulnTime).toBe(0);
-  });
-
-  it('gives dashInvuln seconds of invulnerability when set', () => {
-    const s = createSim(room, 1);
-    stepSim(s, input({ x: 1, y: 0 }, { dash: true }), { ...t, dashInvuln: 0.2 }, room);
-    expect(s.player.invulnTime).toBeCloseTo(0.2);
+  it('there is no dash left: no dash tuning values or player fields', () => {
+    expect(Object.keys(t).filter((k) => k.toLowerCase().includes('dash'))).toEqual([]);
+    expect(Object.keys(createSim(room, 1).player).filter((k) => k.toLowerCase().includes('dash'))).toEqual([]);
   });
 });

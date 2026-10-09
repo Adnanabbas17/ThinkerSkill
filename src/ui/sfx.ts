@@ -123,7 +123,6 @@ export function createSfx(): Sfx {
 
   const sounds: Partial<Record<SimEvent['type'], () => void>> = {
     fire: gunshot,
-    dash: () => hiss(2400, 0.14, 0.5),
     enemySpawn: () => tone('sine', 420, 640, 0.15, 0.12),
     enemyHit: () => tone('triangle', 320, 170, 0.07, 0.35),
     enemyKilled: () => {

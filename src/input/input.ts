@@ -1,5 +1,5 @@
 import type { TickInput, Vec2 } from '../sim/types';
-import { FIRE_CODE, KeyTracker } from './keys';
+import { FIRE_CODE, KeyTracker, RUN_CODE, shouldPreventDefault } from './keys';
 
 export interface Input {
   /**
@@ -17,10 +17,14 @@ export function createInput(canvas: HTMLCanvasElement): Input {
   let lastAim: Vec2 = { x: 0, y: -1 };
 
   window.addEventListener('keydown', (e) => {
-    keys.keyDown(e.code, e.repeat);
-    if (e.code.startsWith('Shift') || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) e.preventDefault();
+    keys.keyDown(e.code);
+    if (shouldPreventDefault(e.code)) e.preventDefault(); // Space must never scroll the page
   });
-  window.addEventListener('keyup', (e) => keys.keyUp(e.code));
+  window.addEventListener('keyup', (e) => {
+    keys.keyUp(e.code);
+    // A focused button (tuning panel) is activated by Space on keyup: stop that too.
+    if (e.code === RUN_CODE) e.preventDefault();
+  });
   window.addEventListener('blur', () => keys.releaseAll());
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) keys.releaseAll();
@@ -29,7 +33,7 @@ export function createInput(canvas: HTMLCanvasElement): Input {
     cursor = { x: e.clientX, y: e.clientY };
   });
   canvas.addEventListener('pointerdown', (e) => {
-    if (e.button === 0) keys.keyDown(FIRE_CODE, false);
+    if (e.button === 0) keys.keyDown(FIRE_CODE);
   });
   window.addEventListener('pointerup', (e) => {
     if (e.button === 0) keys.keyUp(FIRE_CODE);
@@ -40,7 +44,7 @@ export function createInput(canvas: HTMLCanvasElement): Input {
     sample(toFloor) {
       const aim = toFloor(cursor.x, cursor.y);
       if (aim) lastAim = aim;
-      return { move: keys.move(), aim: { ...lastAim }, dash: keys.takeDash(), fire: keys.takeFire() };
+      return { move: keys.move(), aim: { ...lastAim }, run: keys.isRunning(), fire: keys.takeFire() };
     },
     releaseAll: () => keys.releaseAll(),
   };
